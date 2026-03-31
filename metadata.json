@@ -1,0 +1,5 @@
+{
+  "name": "AssignMate",
+  "description": "AI-powered assignment automation platform for students.",
+  "requestFramePermissions": ["camera", "microphone"]
+}

@@ -1,0 +1,1078 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Zap, Sparkles, LayoutDashboard, User as UserIcon, BookOpen,
+    SearchCode, RefreshCw, Upload, Plus, X, ArrowRight, ArrowLeft,
+    Code, Check, FileText, Bookmark, Save
+} from 'lucide-react';
+
+import toast from 'react-hot-toast';
+import clsx from 'clsx';
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
+import { useAuth } from '../../auth/context/AuthContext';
+import { createDocument, saveAsTemplate } from '../../../shared/services/db';
+import { performTask, AcademicTone } from '../../../shared/services/ai';
+import { AppLayout as Layout } from '../../../app/layout/AppLayout';
+
+
+import GeneratingLoader from '../../../shared/components/GeneratingLoader';
+import { extractTemplateData, Section as ExtractedSection, TemplateData, formatAsStrictJSON } from '../../../shared/utils/templateExtractor';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Section {
+    id: string;
+    title: string;
+    level: number;
+    subsections?: Section[];
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+const uid = () => Math.random().toString(36).substr(2, 9);
+
+// Convert extracted sections to internal format with unique IDs
+function convertExtractedSections(sections: ExtractedSection[]): Section[] {
+    return sections.map(s => ({
+        id: uid(),
+        title: s.title,
+        level: s.level,
+        subsections: s.subsections ? convertExtractedSections(s.subsections) : undefined,
+    }));
+}
+
+// Flatten hierarchical sections for editing UI
+function flattenSections(sections: Section[]): Array<Section & { depth: number }> {
+    const result: Array<Section & { depth: number }> = [];
+
+    const traverse = (secs: Section[], depth = 0) => {
+        secs.forEach(s => {
+            result.push({ ...s, depth });
+            if (s.subsections && s.subsections.length > 0) {
+                traverse(s.subsections, depth + 1);
+            }
+        });
+    };
+
+    traverse(sections);
+    return result;
+}
+
+// ── Built-in templates ────────────────────────────────────────────────────────
+
+const BUILT_IN_TEMPLATES = [
+    {
+        id: 'lab-report',
+        name: 'Lab Report',
+        icon: SearchCode,
+        sections: [
+            { title: 'Abstract', level: 1 },
+            { title: 'Introduction', level: 1 },
+            { title: 'Methodology', level: 1 },
+            { title: 'Results', level: 1 },
+            { title: 'Discussion', level: 1 },
+            { title: 'Conclusion', level: 1 },
+            { title: 'References', level: 1 },
+        ],
+    },
+    {
+        id: 'case-study',
+        name: 'Case Study',
+        icon: BookOpen,
+        sections: [
+            { title: 'Executive Summary', level: 1 },
+            { title: 'Introduction', level: 1 },
+            { title: 'Case Overview', level: 1 },
+            { title: 'Analysis', level: 1 },
+            { title: 'Recommendations', level: 1 },
+            { title: 'Conclusion', level: 1 },
+        ],
+    },
+    {
+        id: 'research-paper',
+        name: 'Research Paper',
+        icon: FileText,
+        sections: [
+            { title: 'Abstract', level: 1 },
+            { title: 'Introduction', level: 1 },
+            { title: 'Literature Review', level: 1 },
+            { title: 'Research Methodology', level: 1 },
+            { title: 'Data Analysis & Findings', level: 1 },
+            { title: 'Discussion', level: 1 },
+            { title: 'Conclusion', level: 1 },
+            { title: 'References', level: 1 },
+        ],
+    },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+const GeneratePage = () => {
+    const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    const [topic, setTopic] = useState('');
+    const [description, setDescription] = useState('');
+    const [studentName, setStudentName] = useState('');
+    const [regNo, setRegNo] = useState('');
+    const [course, setCourse] = useState('');
+    const [institution, setInstitution] = useState('');
+    const [tone, setTone] = useState<AcademicTone>('formal');
+
+    const [sections, setSections] = useState<Section[]>([]);
+    const [templateText, setTemplateText] = useState('');
+    const [templateFile, setTemplateFile] = useState<File | null>(null);
+    const [extractedData, setExtractedData] = useState<TemplateData | null>(null);
+
+    const [parsingFile, setParsingFile] = useState(false);
+    const [parseStatus, setParseStatus] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const [showTemplateInput, setShowTemplateInput] = useState(false);
+    const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+    const [activeStep, setActiveStep] = useState(0);
+
+    // Apply template from router navigation state
+    useEffect(() => {
+        if (!location.state?.template) return;
+        const t = location.state.template;
+        setSections(
+            (t.sections ?? []).map((s: any) => ({
+                id: uid(),
+                title: typeof s === 'string' ? s : s.title,
+                level: s.level ?? 1,
+            }))
+        );
+        setTopic(t.topic || '');
+        setDescription(t.description || '');
+        setTone(t.tone || 'formal');
+
+        // Also restore metadata if available
+        if (t.metadataFields) {
+            if (t.metadataFields.student_name) setStudentName(t.metadataFields.student_name);
+            if (t.metadataFields.registration_number) setRegNo(t.metadataFields.registration_number);
+            if (t.metadataFields.course) setCourse(t.metadataFields.course);
+            if (t.metadataFields.institution) setInstitution(t.metadataFields.institution);
+        }
+
+        setTemplateText(`Follow the structure of ${t.title || t.name}.`);
+        toast.success(`${t.title || t.name} applied!`);
+    }, [location.state]);
+
+    // ── Reset ──────────────────────────────────────────────────────────────────
+
+    const handleReset = () => {
+        setSections([]);
+        setTemplateFile(null);
+        setTemplateText('');
+        setExtractedData(null);
+        setTopic('');
+        setDescription('');
+        setTone('formal');
+        setStudentName('');
+        setRegNo('');
+        setCourse('');
+        setInstitution('');
+        setActiveStep(0);
+        setParseStatus('');
+        if (fileRef.current) fileRef.current.value = '';
+        toast.success('Reset complete');
+    };
+
+    // ── Built-in template ──────────────────────────────────────────────────────
+
+    const handleSelectTemplate = (t: typeof BUILT_IN_TEMPLATES[0]) => {
+        setSections(t.sections.map(s => ({ id: uid(), ...s })));
+        setTemplateText(`Follow the structure of a ${t.name}.`);
+        setShowTemplateLibrary(false);
+        toast.success(`${t.name} applied!`);
+    };
+
+    // ── File upload — improved extraction ─────────────────────────────────────
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setTemplateFile(file);
+        setParsingFile(true);
+        setSections([]);
+        setExtractedData(null);
+
+        try {
+            const data = await extractTemplateData(file, (status) => {
+                setParseStatus(status);
+            });
+
+            setExtractedData(data);
+
+            // Auto-fill metadata (never overwrite user input)
+            const m = data.metadata;
+            if (m.student_name && !studentName) setStudentName(m.student_name);
+            if (m.registration_number && !regNo) setRegNo(m.registration_number);
+            if (m.course && !course) setCourse(m.course);
+            if (m.institution && !institution) setInstitution(m.institution);
+            if (data.title && !topic && data.title !== 'Untitled Document') {
+                setTopic(data.title);
+            }
+
+            // Set raw text for AI style matching
+            setTemplateText(data.rawText);
+
+            // Convert and set sections
+            if (data.sections.length > 0) {
+                setSections(convertExtractedSections(data.sections));
+
+                // Count sections
+                const countSections = (secs: ExtractedSection[]): number => {
+                    return secs.reduce((sum, s) =>
+                        sum + 1 + (s.subsections ? countSections(s.subsections) : 0), 0
+                    );
+                };
+
+                const totalSections = countSections(data.sections);
+                const h1Count = data.sections.length;
+
+                toast.success(
+                    `Extracted ${totalSections} section${totalSections !== 1 ? 's' : ''}` +
+                    (h1Count < totalSections ? ` (${h1Count} main)` : '')
+                );
+            } else {
+                // Fallback defaults
+                setSections([
+                    { id: uid(), title: 'Introduction', level: 1 },
+                    { id: uid(), title: 'Main Body', level: 1 },
+                    { id: uid(), title: 'Conclusion', level: 1 },
+                    { id: uid(), title: 'References', level: 1 },
+                ]);
+                toast('No headings detected — defaults applied.', { icon: '⚠️' });
+            }
+
+            // Show extraction summary
+            if (data.style.body_font_size || data.style.font_family) {
+                const styleInfo = [];
+                if (data.style.font_family) styleInfo.push(data.style.font_family);
+                if (data.style.body_font_size) styleInfo.push(`${Math.round(data.style.body_font_size)}pt`);
+
+                console.log('Extracted style:', styleInfo.join(', '));
+            }
+
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Failed to parse file. Try a different format.');
+            setTemplateFile(null);
+            setExtractedData(null);
+            if (fileRef.current) fileRef.current.value = '';
+        } finally {
+            setParsingFile(false);
+            setParseStatus('');
+        }
+    };
+
+    // ── Section CRUD (works with hierarchical structure) ──────────────────────
+
+    const addSection = (level = 1) => {
+        setSections(prev => [...prev, { id: uid(), title: 'New Section', level }]);
+    };
+
+    const removeSection = (id: string) => {
+        const removeFromTree = (secs: Section[]): Section[] => {
+            return secs
+                .filter(s => s.id !== id)
+                .map(s => ({
+                    ...s,
+                    subsections: s.subsections ? removeFromTree(s.subsections) : undefined,
+                }));
+        };
+        setSections(prev => removeFromTree(prev));
+    };
+
+    const editSection = (id: string, title: string) => {
+        const updateInTree = (secs: Section[]): Section[] => {
+            return secs.map(s => {
+                if (s.id === id) return { ...s, title };
+                if (s.subsections) return { ...s, subsections: updateInTree(s.subsections) };
+                return s;
+            });
+        };
+        setSections(prev => updateInTree(prev));
+    };
+
+    const cycleLevel = (id: string) => {
+        const updateInTree = (secs: Section[]): Section[] => {
+            return secs.map(s => {
+                if (s.id === id) {
+                    const newLevel = s.level === 1 ? 2 : s.level === 2 ? 3 : 1;
+                    return { ...s, level: newLevel };
+                }
+                if (s.subsections) return { ...s, subsections: updateInTree(s.subsections) };
+                return s;
+            });
+        };
+        setSections(prev => updateInTree(prev));
+    };
+
+    const handleExportJSON = () => {
+        if (!extractedData) return;
+        const json = formatAsStrictJSON(extractedData);
+        const blob = new Blob([json], { type: 'application/json' });
+        saveAs(blob, `${topic || 'template'}-structure.json`);
+        toast.success('JSON structure exported!');
+    };
+
+    const handleSaveAsTemplate = async () => {
+        if (!user) {
+            toast.error('Please login to save templates');
+            return;
+        }
+
+        if (flatSections.length === 0) {
+            toast.error('No structure to save');
+            return;
+        }
+
+        try {
+            const name = prompt('Enter a name for this blueprint:', topic || 'Custom Lab Report');
+            if (!name) return;
+
+            const res = await saveAsTemplate(user.uid, {
+                name,
+                sections: flatSections.map(s => ({ title: s.title, level: s.level })),
+                metadataFields: extractedData?.metadata || {},
+                style: extractedData?.style || {},
+                topic: topic || '',
+            });
+
+            if (res && (res.id || res.success)) {
+                toast.success('Blueprint saved to your Archives');
+            } else {
+                throw new Error('No success response from server');
+            }
+
+        } catch (error) {
+            console.error('Save template error:', error);
+            toast.error('Failed to save blueprint');
+        }
+    };
+
+    // ── Generate ───────────────────────────────────────────────────────────────
+
+    const handleGenerate = async (e: React.FormEvent, downloadDocx = false) => {
+        e.preventDefault();
+        if (!user) return;
+        setLoading(true);
+
+        try {
+            // Flatten sections for AI
+            const flatSections = flattenSections(sections);
+            const sectionsForAI = flatSections.map(s => ({
+                title: s.title,
+                level: s.level,
+            }));
+
+            const result = await performTask({
+                task_type: 'generate',
+                topic,
+                description,
+                tone,
+                template: templateText || undefined,
+                sections: sectionsForAI.length > 0 ? sectionsForAI : undefined,
+                studentName,
+                regNo,
+                course,
+                institution,
+            });
+
+            const newDoc = await createDocument(
+                user.uid,
+                topic || 'Untitled',
+                result,
+                topic,
+                description,
+                tone
+            );
+
+            if (!newDoc) throw new Error('Failed to save document');
+
+            toast.success('Assignment generated!');
+
+            if (downloadDocx) {
+                const plain = (() => {
+                    const d = document.createElement('div');
+                    d.innerHTML = result;
+                    return d.textContent || '';
+                })();
+
+                const doc = new Document({
+                    sections: [
+                        {
+                            properties: {},
+                            children: [
+                                new Paragraph({
+                                    text: topic || 'Untitled',
+                                    heading: HeadingLevel.HEADING_1,
+                                }),
+                                ...flatSections.map(s =>
+                                    new Paragraph({
+                                        text: s.title,
+                                        heading:
+                                            s.level === 1
+                                                ? HeadingLevel.HEADING_2
+                                                : s.level === 2
+                                                    ? HeadingLevel.HEADING_3
+                                                    : HeadingLevel.HEADING_4,
+                                    })
+                                ),
+                                new Paragraph({ text: plain }),
+                            ],
+                        },
+                    ],
+                });
+
+                saveAs(await Packer.toBlob(doc), `${topic || 'Assignment'}.docx`);
+                toast.success('DOCX downloaded!');
+            }
+
+            navigate(`/editor/${newDoc.id}`);
+        } catch (err: any) {
+            const msg = err?.message && typeof err.message === 'string' ? err.message : 'Generation failed — please try again';
+            toast.error(msg);
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ── Step config ────────────────────────────────────────────────────────────
+
+    const steps = [
+        { title: 'Structure', icon: LayoutDashboard },
+        { title: 'Core Concept', icon: Sparkles },
+        { title: 'Personalize', icon: UserIcon },
+    ];
+
+    const LEVEL_BADGE: Record<number, string> = {
+        1: 'bg-stone-900 text-white',
+        2: 'bg-stone-200 text-stone-700',
+        3: 'bg-stone-100 text-stone-400',
+    };
+
+    const LEVEL_INDENT: Record<number, string> = {
+        0: 'ml-0',
+        1: 'ml-6',
+        2: 'ml-12',
+        3: 'ml-18',
+    };
+
+    // Flatten for rendering
+    const flatSections = flattenSections(sections);
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+
+    return (
+        <Layout>
+            <AnimatePresence>{loading && <GeneratingLoader topic={topic} />}</AnimatePresence>
+
+            <div className="min-h-screen bg-stone-50/50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-amber-100/30 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-indigo-100/30 blur-[120px] rounded-full translate-y-1/4 -translate-x-1/4 pointer-events-none" />
+
+                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
+                    {/* Header */}
+                    <header className="mb-16 text-center space-y-4">
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-stone-900 text-white text-[10px] font-bold uppercase tracking-widest"
+                        >
+                            <Zap size={12} className="text-amber-400" /> AI-Powered Generation
+                        </motion.div>
+                        <motion.h1
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="text-5xl md:text-6xl font-bold text-stone-900 tracking-tight"
+                        >
+                            Create your <span className="italic font-serif text-amber-600">masterpiece</span>.
+                        </motion.h1>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-stone-500 text-lg max-w-2xl mx-auto"
+                        >
+                            Advanced AI extracts structure, formatting, and content from your templates —
+                            headings detected by size and bold formatting, with no timeouts.
+                        </motion.p>
+                    </header>
+
+                    <div className="grid lg:grid-cols-12 gap-12 items-start">
+                        {/* Left: progress sidebar */}
+                        <div className="lg:col-span-4 space-y-8">
+                            <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-xl shadow-stone-200/50">
+                                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">
+                                    Generation Progress
+                                </h3>
+                                <div className="space-y-6">
+                                    {steps.map((s, i) => (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <div
+                                                className={clsx(
+                                                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500',
+                                                    activeStep === i
+                                                        ? 'bg-stone-900 text-white scale-110 shadow-lg'
+                                                        : activeStep > i
+                                                            ? 'bg-emerald-100 text-emerald-600'
+                                                            : 'bg-stone-50 text-stone-300'
+                                                )}
+                                            >
+                                                {activeStep > i ? <Check size={20} /> : <s.icon size={20} />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p
+                                                    className={clsx(
+                                                        'text-sm font-bold transition-colors',
+                                                        activeStep === i ? 'text-stone-900' : 'text-stone-400'
+                                                    )}
+                                                >
+                                                    {s.title}
+                                                </p>
+                                                <div className="h-1 bg-stone-50 rounded-full mt-2 overflow-hidden">
+                                                    <motion.div
+                                                        animate={{
+                                                            width:
+                                                                activeStep === i
+                                                                    ? '50%'
+                                                                    : activeStep > i
+                                                                        ? '100%'
+                                                                        : '0%',
+                                                        }}
+                                                        className="h-full bg-stone-900"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-amber-50 rounded-[2.5rem] p-8 border border-amber-100/50">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-white">
+                                        <Zap size={18} />
+                                    </div>
+                                    <h4 className="font-bold text-amber-900">Enhanced Extraction</h4>
+                                </div>
+                                <p className="text-sm text-amber-800/70 leading-relaxed">
+                                    Upload any template — PDF, DOCX, or TXT. Headings are detected by font size,
+                                    bold formatting, and structure. No timeouts, processes up to 30 pages instantly.
+                                </p>
+                            </div>
+
+                            {/* Extracted data summary */}
+                            {extractedData && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-emerald-50 rounded-[2.5rem] p-6 border border-emerald-100/50 space-y-3"
+                                >
+                                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-widest">
+                                        Extraction Summary
+                                    </h4>
+                                    {extractedData.style.font_family && (
+                                        <div className="text-sm text-emerald-800/70">
+                                            <span className="font-bold">Font:</span> {extractedData.style.font_family}
+                                        </div>
+                                    )}
+                                    {extractedData.style.body_font_size && (
+                                        <div className="text-sm text-emerald-800/70">
+                                            <span className="font-bold">Body:</span>{' '}
+                                            {Math.round(extractedData.style.body_font_size)}pt
+                                        </div>
+                                    )}
+                                    {extractedData.style.heading_font_size && (
+                                        <div className="text-sm text-emerald-800/70">
+                                            <span className="font-bold">Heading:</span>{' '}
+                                            {Math.round(extractedData.style.heading_font_size)}pt
+                                        </div>
+                                    )}
+                                    <div className="text-sm text-emerald-800/70">
+                                        <span className="font-bold">Sections:</span> {flatSections.length}
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveAsTemplate}
+                                            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10"
+                                        >
+                                            <Save size={14} /> Save Blueprint to DB
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleExportJSON}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-emerald-200 bg-white text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition-all"
+                                        >
+                                            <Code size={14} /> Export Structure (JSON)
+                                        </button>
+                                    </div>
+                                </motion.div>
+
+                            )}
+                        </div>
+
+                        {/* Right: multi-step form */}
+                        <div className="lg:col-span-8">
+                            <form onSubmit={handleGenerate} className="space-y-8">
+                                <AnimatePresence mode="wait">
+                                    {/* ── Step 0: Structure ── */}
+                                    {activeStep === 0 && (
+                                        <motion.div
+                                            key="step0"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                        >
+                                            <div className="space-y-5">
+                                                {/* Toolbar */}
+                                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                        Structure & Template
+                                                    </label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {(sections.length > 0 || templateFile) && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleReset}
+                                                                className="text-xs font-bold text-red-500 flex items-center gap-2 px-4 py-2 bg-red-50 rounded-full hover:bg-red-100 transition-all"
+                                                            >
+                                                                <RefreshCw size={14} /> Reset
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowTemplateLibrary(v => !v)}
+                                                            className="text-xs font-bold text-stone-900 flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-all"
+                                                        >
+                                                            <BookOpen size={14} />{' '}
+                                                            {showTemplateLibrary ? 'Hide Library' : 'Browse Library'}
+                                                        </button>
+                                                        <label className="text-xs font-bold text-stone-900 flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-all cursor-pointer">
+                                                            <Upload size={14} /> Upload Template
+                                                            <input
+                                                                ref={fileRef}
+                                                                type="file"
+                                                                className="hidden"
+                                                                onChange={handleFileChange}
+                                                                accept=".pdf,.docx,.txt"
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Built-in library */}
+                                                {showTemplateLibrary && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-stone-50 rounded-3xl border border-stone-100"
+                                                    >
+                                                        {BUILT_IN_TEMPLATES.map(t => (
+                                                            <button
+                                                                key={t.id}
+                                                                type="button"
+                                                                onClick={() => handleSelectTemplate(t)}
+                                                                className="flex items-start gap-4 p-4 bg-white border border-stone-100 rounded-2xl hover:border-stone-900 hover:shadow-md transition-all text-left group"
+                                                            >
+                                                                <div className="w-10 h-10 bg-stone-50 rounded-xl flex items-center justify-center text-stone-400 group-hover:bg-stone-900 group-hover:text-white transition-all shrink-0">
+                                                                    <t.icon size={20} />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-bold text-stone-900 text-sm">
+                                                                        {t.name}
+                                                                    </h4>
+                                                                    <p className="text-[10px] text-stone-500 mt-1 uppercase tracking-wider">
+                                                                        {t.sections.length} Sections
+                                                                    </p>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </motion.div>
+                                                )}
+
+                                                {/* Parse progress */}
+                                                {parsingFile && (
+                                                    <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 animate-pulse">
+                                                        <RefreshCw size={16} className="text-amber-600 animate-spin" />
+                                                        <p className="text-xs font-bold text-amber-900">{parseStatus}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* File name badge */}
+                                                {templateFile && !parsingFile && (
+                                                    <div className="flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-xl w-fit">
+                                                        <FileText size={14} className="text-stone-400" />
+                                                        <span className="text-xs font-medium text-stone-600 truncate max-w-[240px]">
+                                                            {templateFile.name}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleReset}
+                                                            className="text-stone-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Section list with hierarchy */}
+                                                <div className="space-y-2">
+                                                    {flatSections.map((section, idx) => (
+                                                        <motion.div
+                                                            key={section.id}
+                                                            initial={{ opacity: 0, x: -10 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: Math.min(idx * 0.025, 0.25) }}
+                                                            className={clsx(
+                                                                'flex items-center gap-3',
+                                                                LEVEL_INDENT[section.depth] ?? 'ml-0'
+                                                            )}
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => cycleLevel(section.id)}
+                                                                title="Click to change level (H1 → H2 → H3)"
+                                                                className={clsx(
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all shrink-0',
+                                                                    LEVEL_BADGE[section.level] ??
+                                                                    'bg-stone-100 text-stone-400'
+                                                                )}
+                                                            >
+                                                                H{section.level}
+                                                            </button>
+
+                                                            <input
+                                                                type="text"
+                                                                value={section.title}
+                                                                onChange={e => editSection(section.id, e.target.value)}
+                                                                className="flex-1 bg-stone-50 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                            />
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeSection(section.id)}
+                                                                className="p-2 text-stone-300 hover:text-red-500 transition-colors shrink-0"
+                                                            >
+                                                                <X size={16} />
+                                                            </button>
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Add section */}
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addSection(1)}
+                                                        className="flex-1 py-3 border-2 border-dashed border-stone-100 rounded-xl text-stone-400 text-xs font-bold hover:border-stone-300 hover:text-stone-600 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Plus size={14} /> Section (H1)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addSection(2)}
+                                                        className="flex-1 py-3 border-2 border-dashed border-stone-100 rounded-xl text-stone-400 text-xs font-bold hover:border-stone-300 hover:text-stone-600 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Plus size={14} /> Subsection (H2)
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        sections.length > 0
+                                                            ? setActiveStep(1)
+                                                            : toast.error('Add at least one section first')
+                                                    }
+                                                    className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+                                                >
+                                                    Next Step <ArrowRight size={20} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* ── Step 1: Core Concept ── */}
+                                    {activeStep === 1 && (
+                                        <motion.div
+                                            key="step1"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                        >
+                                            <div className="space-y-6">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                        Assignment Topic
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={topic}
+                                                        onChange={e => setTopic(e.target.value)}
+                                                        placeholder="e.g. The Impact of Quantum Computing on Modern Cryptography"
+                                                        className="w-full bg-stone-50 border-none rounded-2xl px-8 py-5 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                            Detailed Context & Core Content
+                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowTemplateInput(v => !v)}
+                                                            className="text-[10px] font-bold text-stone-900 flex items-center gap-2 px-3 py-1 bg-stone-50 rounded-full hover:bg-stone-100 transition-all"
+                                                        >
+                                                            <Code size={12} />{' '}
+                                                            {showTemplateInput ? 'Hide' : 'Direct Content Input'}
+                                                        </button>
+                                                    </div>
+
+                                                    {showTemplateInput && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            className="mb-4"
+                                                        >
+                                                            <div className="p-6 bg-stone-900 rounded-3xl space-y-4">
+                                                                <div className="flex items-center gap-2 text-amber-400">
+                                                                    <Sparkles size={16} />
+                                                                    <h4 className="text-xs font-bold uppercase tracking-widest">
+                                                                        AI Guidance / Reference Material
+                                                                    </h4>
+                                                                </div>
+                                                                <textarea
+                                                                    rows={6}
+                                                                    value={templateText}
+                                                                    onChange={e => setTemplateText(e.target.value)}
+                                                                    placeholder="Paste core content, structure requirements, or reference text…"
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium text-white focus:ring-2 focus:ring-amber-400 transition-all outline-none resize-none placeholder:text-stone-600"
+                                                                />
+                                                                <p className="text-[10px] text-stone-500 italic">
+                                                                    * Extracted template content auto-filled above
+                                                                </p>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+
+                                                    <textarea
+                                                        rows={5}
+                                                        required
+                                                        value={description}
+                                                        onChange={e => setDescription(e.target.value)}
+                                                        placeholder="Describe key points, required theories, or specific focus areas…"
+                                                        className="w-full bg-stone-50 border-none rounded-2xl px-8 py-5 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none resize-none"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-4 pt-4">
+                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                        Academic Tone
+                                                    </label>
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                        {(['formal', 'analytical', 'persuasive', 'descriptive'] as AcademicTone[]).map(
+                                                            t => (
+                                                                <button
+                                                                    key={t}
+                                                                    type="button"
+                                                                    onClick={() => setTone(t)}
+                                                                    className={clsx(
+                                                                        'py-3 px-4 rounded-xl text-xs font-bold capitalize transition-all border',
+                                                                        tone === t
+                                                                            ? 'bg-stone-900 text-white border-stone-900 shadow-lg'
+                                                                            : 'bg-white text-stone-500 border-stone-100 hover:border-stone-300'
+                                                                    )}
+                                                                >
+                                                                    {t}
+                                                                </button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveStep(0)}
+                                                    className="px-8 py-4 text-stone-400 font-bold hover:text-stone-900 transition-all flex items-center gap-2"
+                                                >
+                                                    <ArrowLeft size={20} /> Back
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        topic && description
+                                                            ? setActiveStep(2)
+                                                            : toast.error('Fill in the topic and description first')
+                                                    }
+                                                    className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+                                                >
+                                                    Next Step <ArrowRight size={20} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* ── Step 2: Personalize ── */}
+                                    {activeStep === 2 && (
+                                        <motion.div
+                                            key="step2"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                        >
+                                            <div className="space-y-8">
+                                                <div className="grid md:grid-cols-2 gap-6">
+                                                    {(
+                                                        [
+                                                            {
+                                                                label: 'Student Name',
+                                                                val: studentName,
+                                                                set: setStudentName,
+                                                                ph: 'Full Name',
+                                                                req: true,
+                                                            },
+                                                            {
+                                                                label: 'Registration Number',
+                                                                val: regNo,
+                                                                set: setRegNo,
+                                                                ph: 'ID / Roll Number',
+                                                                req: true,
+                                                            },
+                                                            {
+                                                                label: 'Course / Subject',
+                                                                val: course,
+                                                                set: setCourse,
+                                                                ph: 'e.g. Computer Science 301',
+                                                                req: false,
+                                                            },
+                                                            {
+                                                                label: 'Institution',
+                                                                val: institution,
+                                                                set: setInstitution,
+                                                                ph: 'University / College',
+                                                                req: false,
+                                                            },
+                                                        ] as const
+                                                    ).map(({ label, val, set, ph, req }) => (
+                                                        <div key={label} className="space-y-2">
+                                                            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                                {label}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={val}
+                                                                onChange={e => (set as any)(e.target.value)}
+                                                                placeholder={ph}
+                                                                required={req}
+                                                                className="w-full bg-stone-50 border-none rounded-2xl px-6 py-4 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Summary */}
+                                                <div className="p-8 bg-stone-900 rounded-[2.5rem] text-white space-y-4">
+                                                    <h4 className="text-xl font-bold">Ready for Generation</h4>
+                                                    <p className="text-stone-400 text-sm leading-relaxed">
+                                                        Generating <span className="text-white font-bold">"{topic}"</span> in{' '}
+                                                        <span className="text-white font-bold">{tone}</span> tone with{' '}
+                                                        <span className="text-white font-bold">
+                                                            {sections.filter(s => s.level === 1).length} section
+                                                            {sections.filter(s => s.level === 1).length !== 1 ? 's' : ''}
+                                                        </span>
+                                                        {flatSections.filter(s => s.level >= 2).length > 0 && (
+                                                            <>
+                                                                {' '}
+                                                                and{' '}
+                                                                <span className="text-white font-bold">
+                                                                    {flatSections.filter(s => s.level >= 2).length}{' '}
+                                                                    subsection
+                                                                    {flatSections.filter(s => s.level >= 2).length !== 1
+                                                                        ? 's'
+                                                                        : ''}
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                        .
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {sections
+                                                            .filter(s => s.level === 1)
+                                                            .slice(0, 7)
+                                                            .map(s => (
+                                                                <span
+                                                                    key={s.id}
+                                                                    className="text-[10px] font-bold px-3 py-1 bg-white/10 rounded-full"
+                                                                >
+                                                                    {s.title}
+                                                                </span>
+                                                            ))}
+                                                        {sections.filter(s => s.level === 1).length > 7 && (
+                                                            <span className="text-[10px] font-bold px-3 py-1 bg-white/10 rounded-full">
+                                                                +{sections.filter(s => s.level === 1).length - 7} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveStep(1)}
+                                                    className="px-8 py-4 text-stone-400 font-bold hover:text-stone-900 transition-all flex items-center gap-2"
+                                                >
+                                                    <ArrowLeft size={20} /> Back
+                                                </button>
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        type="button"
+                                                        onClick={e => handleGenerate(e as any, true)}
+                                                        className="px-8 py-4 bg-white border-2 border-stone-900 text-stone-900 rounded-2xl font-bold hover:bg-stone-50 transition-all active:scale-95 flex items-center gap-2"
+                                                    >
+                                                        Generate &amp; Download DOCX
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+                                                    >
+                                                        Generate in Editor <ArrowRight size={20} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Layout>
+    );
+};
+
+export default GeneratePage;

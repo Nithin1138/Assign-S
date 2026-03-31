@@ -1,0 +1,325 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg-app: #FBFBFA;
+  --bg-card: #FFFFFF;
+  --text-main: #1C1917;
+  --text-muted: #78716C;
+  --accent-main: #1C1917;
+  --border-main: #E7E5E4;
+}
+
+.dark {
+  --bg-app: #0C0A09;
+  --bg-card: #1C1917;
+  --text-main: #FAFAF9;
+  --text-muted: #A8A29E;
+  --accent-main: #FAFAF9;
+  --border-main: #292524;
+}
+
+.midnight {
+  --bg-app: #020617;
+  --bg-card: #0F172A;
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --accent-main: #38BDF8;
+  --border-main: #1E293B;
+}
+
+.emerald {
+  --bg-app: #022C22;
+  --bg-card: #064E3B;
+  --text-main: #ECFDF5;
+  --text-muted: #6EE7B7;
+  --accent-main: #10B981;
+  --border-main: #065F46;
+}
+
+.rose {
+  --bg-app: #450A0A;
+  --bg-card: #7F1D1D;
+  --text-main: #FFF1F2;
+  --text-muted: #FDA4AF;
+  --accent-main: #F43F5E;
+  --border-main: #991B1B;
+}
+
+.amber {
+  --bg-app: #451A03;
+  --bg-card: #78350F;
+  --text-main: #FFFBEB;
+  --text-muted: #FCD34D;
+  --accent-main: #F59E0B;
+  --border-main: #92400E;
+}
+
+.nord {
+  --bg-app: #2E3440;
+  --bg-card: #3B4252;
+  --text-main: #ECEFF4;
+  --text-muted: #D8DEE9;
+  --accent-main: #88C0D0;
+  --border-main: #4C566A;
+}
+
+.coffee {
+  --bg-app: #1A120B;
+  --bg-card: #3C2A21;
+  --text-main: #EAD8C0;
+  --text-muted: #D5B4B4;
+  --accent-main: #D5B4B4;
+  --border-main: #1A120B;
+}
+
+.glass-enabled .glass-card {
+  backdrop-filter: blur(16px);
+  background-color: color-mix(in srgb, var(--bg-card) 70%, transparent);
+  border-color: color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    @apply antialiased transition-colors duration-500;
+  }
+}
+
+/* Template cards: smooth rotating accent for conic border ring */
+@keyframes template-border-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.template-card-border-spin {
+  animation: template-border-rotate 2.75s linear infinite;
+}
+
+/* Tiptap Editor Styles */
+.ProseMirror {
+  @apply outline-none;
+  min-height: 297mm;
+  padding-top: 10mm; /* 1cm top margin on new page simulation */
+}
+
+/* Alignment */
+.ProseMirror [text-align="left"] { text-align: left; }
+.ProseMirror [text-align="center"] { text-align: center; }
+.ProseMirror [text-align="right"] { text-align: right; }
+.ProseMirror [text-align="justify"] { text-align: justify; }
+
+/* Highlight */
+.ProseMirror mark {
+  background-color: #fef08a;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}
+
+/* Paged View Simulation - MS Word Style */
+.stacked-pages {
+  @apply flex flex-col items-center p-8 w-full h-full bg-stone-200/50 overflow-y-auto scroll-smooth cursor-auto;
+}
+
+.page-container {
+  @apply w-[210mm] bg-white shadow-[0_0_50px_rgba(0,0,0,0.1)] rounded-sm border border-stone-200 relative my-8 transition-all;
+  min-height: 297mm;
+  height: auto;
+}
+
+/* Paginated Mode Visuals */
+.paginated-mode .stacked-pages {
+  background-color: #f0f2f5; /* Neutral "desk" surface */
+  padding: 60px 0;
+}
+
+.paginated-mode .page-container {
+  @apply w-[210mm] mx-auto relative;
+  background-color: transparent;
+  height: auto;
+  min-height: 297mm;
+}
+
+/* The Page Backgrounds with Gaps (Paginated Mode) */
+.paginated-mode .page-container {
+  background-color: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.paginated-mode .ProseMirror {
+  /* Content padding inside each page - Increased for better margins */
+  padding: 30mm 25mm !important;
+  min-height: 297mm;
+  outline: none !important;
+  margin: 0 auto;
+  max-width: 210mm;
+  box-sizing: border-box;
+  
+  /* Create the "separate sheets" look with internal margins */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #ffffff 0,
+    #ffffff 297mm,
+    #f5f5f4 297mm,
+    #f5f5f4 312mm
+  );
+  background-size: 100% 312mm;
+  background-repeat: repeat-y;
+  box-shadow: 0 0 50px rgba(0,0,0,0.1);
+}
+
+/* Page break indicators - subtle dotted line in the gap */
+.paginated-mode .page-container::after {
+  content: "";
+  position: absolute;
+  top: 297mm;
+  left: 0;
+  right: 0;
+  height: 15mm;
+  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 8px 8px;
+  background-position: center;
+  background-repeat: repeat-x;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.6;
+}
+
+/* Ensure blocks don't get cut in half easily */
+.paginated-mode .ProseMirror p,
+.paginated-mode .ProseMirror h1,
+.paginated-mode .ProseMirror h2,
+.paginated-mode .ProseMirror h3,
+.paginated-mode .ProseMirror li {
+  break-inside: avoid;
+}
+
+/* Code Block Styling - Enhanced UI */
+.ProseMirror pre {
+  @apply bg-stone-900 text-stone-100 p-6 rounded-2xl font-mono text-sm my-8 relative border border-stone-800 shadow-2xl overflow-x-auto transition-all;
+  tab-size: 2;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent p-0 text-inherit block;
+}
+
+/* Light Theme for Code Blocks */
+.ProseMirror pre.light-theme {
+  @apply bg-stone-50 text-stone-800 border-stone-200 shadow-sm;
+}
+
+.ProseMirror pre.light-theme::before {
+  @apply bg-stone-100 text-stone-400 border-stone-200;
+}
+
+.ProseMirror pre.light-theme::after {
+  @apply text-stone-300 bg-stone-100;
+}
+
+/* Code Block Sizes */
+.ProseMirror pre.size-sm { @apply text-xs p-4 pt-12; }
+.ProseMirror pre.size-lg { @apply text-base p-8 pt-16; }
+.ProseMirror pre.full-width { @apply w-full max-w-none; }
+
+.ProseMirror code {
+  @apply bg-stone-100 text-stone-900 px-1.5 py-0.5 rounded-md font-mono text-[0.9em] border border-stone-200;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent text-inherit p-0 rounded-none border-none block;
+}
+
+/* Syntax Highlighting */
+.hljs-comment, .hljs-quote { @apply text-stone-500 italic; }
+.hljs-keyword, .hljs-selector-tag { @apply text-violet-400 font-bold; }
+.hljs-string, .hljs-attr { @apply text-emerald-400; }
+.hljs-number, .hljs-literal { @apply text-orange-400; }
+.hljs-title, .hljs-section { @apply text-sky-400 font-bold; }
+.hljs-variable, .hljs-template-variable { @apply text-stone-300; }
+.hljs-type, .hljs-built_in { @apply text-amber-400; }
+.hljs-params { @apply text-stone-300; }
+.hljs-function { @apply text-sky-400; }
+
+/* Syntax Highlighting - Light Theme Overrides */
+.ProseMirror pre.light-theme .hljs-comment, 
+.ProseMirror pre.light-theme .hljs-quote { @apply text-stone-400; }
+.ProseMirror pre.light-theme .hljs-keyword { @apply text-violet-600; }
+.ProseMirror pre.light-theme .hljs-string { @apply text-emerald-600; }
+.ProseMirror pre.light-theme .hljs-number { @apply text-orange-600; }
+.ProseMirror pre.light-theme .hljs-title { @apply text-sky-600; }
+.ProseMirror pre.light-theme .hljs-type { @apply text-amber-600; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply float-left text-stone-300 pointer-events-none h-0;
+}
+
+.ProseMirror h1 { @apply text-4xl font-bold mb-6 mt-8; }
+.ProseMirror h2 { @apply text-2xl font-bold mb-4 mt-6; }
+.ProseMirror h3 { @apply text-xl font-bold mb-3 mt-4; }
+.ProseMirror p { @apply mb-4 leading-relaxed text-stone-700; }
+.ProseMirror ul { @apply list-disc ml-6 mb-4; }
+.ProseMirror ol { @apply list-decimal ml-6 mb-4; }
+.ProseMirror blockquote { @apply border-l-4 border-stone-200 pl-4 italic text-stone-500 mb-4; }
+
+/* Aurora Button Effects */
+.btn-aurora {
+  background: linear-gradient(90deg, #1c1917 0%, #44403c 25%, #1c1917 50%, #44403c 75%, #1c1917 100%);
+  background-size: 200% auto;
+  animation: aurora-move 4s linear infinite;
+}
+
+.btn-aurora-light {
+  background: linear-gradient(90deg, #ffffff 0%, #f5f5f4 25%, #ffffff 50%, #f5f5f4 75%, #ffffff 100%);
+  background-size: 200% auto;
+  animation: aurora-move 4s linear infinite;
+  border: 1px solid #e5e7eb;
+}
+
+@keyframes aurora-move {
+  to { background-position: 200% center; }
+}
+
+/* AI Chat Styles */
+.chat-bubble {
+  @apply max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed;
+}
+
+.chat-bubble-user {
+  @apply bg-stone-900 text-white self-end rounded-br-none;
+}
+
+.chat-bubble-ai {
+  @apply bg-stone-100 text-stone-900 self-start rounded-bl-none border border-stone-200 shadow-sm;
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db; /* stone-300/400 equivalent */
+  border-radius: 10px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af; /* stone-400/500 equivalent */
+}
