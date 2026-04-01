@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import { config } from "../config";
+import { auth } from "./firebase";
 
 
 export type TaskType =
@@ -270,10 +271,12 @@ export const performTask = async (input: TaskInput): Promise<string> => {
 
     const prompt = getPrompt(input);
 
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
     const res = await fetch(`${config.apiUrl}/documents/ai`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
         prompt: prompt,

@@ -1,4 +1,19 @@
 import { config } from '../config';
+import { auth } from './firebase';
+
+// --------------------------------------------------
+// Auth header helper — attaches Firebase ID token
+// --------------------------------------------------
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  } catch {
+    // If token fetch fails, request proceeds without auth header
+  }
+  return headers;
+};
 
 export interface UserProfile {
   uid: string;
@@ -41,7 +56,6 @@ export interface Document {
 
 const API_BASE = config.apiUrl;
 
-
 const mapDoc = (d: any): Document => ({
   id: String(d.id),
   userId: d.user_id,
@@ -60,7 +74,7 @@ const mapTemplate = (t: any) => ({
   id: String(t.id),
   userId: t.user_id,
   docId: t.doc_id,
-  title: t.name, // Match 'title' for TemplateCard compatibility
+  title: t.name,
   name: t.name,
   topic: t.topic || '',
   description: t.description || '',
@@ -68,16 +82,18 @@ const mapTemplate = (t: any) => ({
   metadataFields: t.metadata_fields || {},
   style: t.style || {},
   createdAt: t.created_at,
-
   updatedAt: t.updated_at
 });
 
-// User Profile Functions
+// --------------------------------------------------
+// User Profile
+// --------------------------------------------------
 export const syncUser = async (user: any) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         uid: user.uid,
         email: user.email,
@@ -93,9 +109,10 @@ export const syncUser = async (user: any) => {
 
 export const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/users/${uid}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ uid, ...updates })
     });
     return await response.json();
@@ -106,35 +123,37 @@ export const updateUserProfile = async (uid: string, updates: Partial<UserProfil
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
   try {
-    const response = await fetch(`${API_BASE}/users/${uid}`);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/users/${uid}`, { headers });
     if (!response.ok) return null;
     const data = await response.json();
-    return { 
-      ...data, 
-      createdAt: data.created_at 
-    } as UserProfile;
+    return { ...data, createdAt: data.created_at } as UserProfile;
   } catch (error) {
     console.error("Get User Profile failed:", error);
     return null;
   }
 };
 
-// Document Functions
+// --------------------------------------------------
+// Documents
+// --------------------------------------------------
 export const createDocument = async (userId: string, title: string, content: string, topic?: string, description?: string, tone?: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/documents`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        user_id: userId, 
-        title: title || 'Untitled Assignment', 
+      headers,
+      body: JSON.stringify({
+        user_id: userId,
+        title: title || 'Untitled Assignment',
         content,
         topic,
         description,
         tone
       })
     });
-    return await response.json();
+    const json = await response.json();
+    return json?.data ?? json;
   } catch (error) {
     console.error("Create Document failed:", error);
   }
@@ -142,9 +161,10 @@ export const createDocument = async (userId: string, title: string, content: str
 
 export const updateDocument = async (userId: string, docId: string, updates: Partial<Document>) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/documents/${docId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         user_id: userId,
         title: updates.title,
@@ -164,8 +184,10 @@ export const updateDocument = async (userId: string, docId: string, updates: Par
 
 export const deleteDocument = async (userId: string, docId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/documents/${docId}?user_id=${userId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers,
     });
     return await response.json();
   } catch (error) {
@@ -175,7 +197,8 @@ export const deleteDocument = async (userId: string, docId: string) => {
 
 export const getDocument = async (userId: string, docId: string): Promise<Document | null> => {
   try {
-    const response = await fetch(`${API_BASE}/documents/${docId}?user_id=${userId}`);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/${docId}?user_id=${userId}`, { headers });
     if (!response.ok) return null;
     const data = await response.json();
     return mapDoc(data);
@@ -187,7 +210,8 @@ export const getDocument = async (userId: string, docId: string): Promise<Docume
 
 export const getUserDocuments = async (userId: string): Promise<Document[]> => {
   try {
-    const response = await fetch(`${API_BASE}/documents?user_id=${userId}`);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents?user_id=${userId}`, { headers });
     const data = await response.json();
     return data.map(mapDoc);
   } catch (error) {
@@ -196,9 +220,13 @@ export const getUserDocuments = async (userId: string): Promise<Document[]> => {
   }
 };
 
+// --------------------------------------------------
+// Templates
+// --------------------------------------------------
 export const getUserTemplates = async (userId: string): Promise<any[]> => {
   try {
-    const response = await fetch(`${API_BASE}/templates?user_id=${userId}`);
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/templates?user_id=${userId}`, { headers });
     const data = await response.json();
     return data.map(mapTemplate);
   } catch (error) {
@@ -209,9 +237,10 @@ export const getUserTemplates = async (userId: string): Promise<any[]> => {
 
 export const saveAsTemplate = async (userId: string, data: { name: string, sections: any[], metadataFields?: any, style?: any, topic?: string, description?: string, docId?: number }) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/templates`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         user_id: userId,
         name: data.name,
@@ -223,22 +252,23 @@ export const saveAsTemplate = async (userId: string, data: { name: string, secti
         doc_id: data.docId
       })
     });
-    const result = await response.json();
+    const json = await response.json();
     if (!response.ok) {
-        throw new Error(result.error || result.detail || 'Failed to save template');
+      throw new Error(json?.error || json?.data?.detail || json?.detail || 'Failed to save template');
     }
-    return result;
+    return json?.data ?? json;
   } catch (error) {
     console.error("Save Template failed:", error);
     throw error;
   }
 };
 
-
 export const deleteTemplate = async (userId: string, templateId: string) => {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/templates/${templateId}?user_id=${userId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers,
     });
     return await response.json();
   } catch (error) {
@@ -246,8 +276,9 @@ export const deleteTemplate = async (userId: string, templateId: string) => {
   }
 };
 
-
-// Subscriptions replaced with manual calls or polling placeholders
+// --------------------------------------------------
+// Subscription shims (polling)
+// --------------------------------------------------
 export const subscribeToUserDocuments = (userId: string, callback: (docs: Document[]) => void) => {
   getUserDocuments(userId).then(callback);
   return () => {};
