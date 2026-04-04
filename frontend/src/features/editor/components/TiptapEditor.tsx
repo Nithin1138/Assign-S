@@ -54,7 +54,7 @@ const TiptapEditor = ({ content, onChange, onSelectionChange }: TiptapEditorProp
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-stone max-w-none focus:outline-none min-h-[500px] p-8 md:p-12 text-lg leading-relaxed text-stone-900',
+        class: 'prose prose-stone max-w-none focus:outline-none min-h-[500px] p-8 md:p-12 text-lg leading-relaxed text-stone-900 font-[inherit]',
       },
     },
   });

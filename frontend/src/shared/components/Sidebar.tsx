@@ -11,12 +11,25 @@ import {
   Sparkles,
   X,
   ChevronRight,
-  LogOut
+  LogOut,
+  Settings,
+  Shield,
+  History,
+  Info,
+  Zap,
+  Sun,
+  Moon,
+  Bell,
+  Lock,
+  MessageSquare,
+  Monitor,
+  CreditCard
 } from 'lucide-react';
 
 import { useAuth } from '../../features/auth/context/AuthContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { signOut } from '../services/auth';
+import { UserProfile, updateUserProfile } from '../services/db';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,67 +46,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { isMobile, isTablet } = useResponsive();
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
+  const [notifPreferences, setNotifPreferences] = React.useState({
+    studyReminders: true,
+    assignmentStatus: true,
+    newBlueprints: false,
+    systemAlerts: true
+  });
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  const toggleNotif = (key: keyof typeof notifPreferences) => {
+    setNotifPreferences(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: PlusCircle, label: 'Generate', path: '/generate' },
-    { icon: Book, label: 'Templates', path: '/templates' },
+    { icon: LayoutDashboard, label: 'Home', path: '/dashboard' },
+    { icon: Sparkles, label: 'Generate', path: '/generate' },
     { icon: FileText, label: 'Documents', path: '/documents' },
-    { icon: UserIcon, label: 'Profile', path: '/profile' },
+    { icon: Book, label: 'Templates', path: '/templates' },
   ];
 
-  const content = (
-    <div
-      onMouseEnter={() => !isMobile && !isTablet && setIsCollapsed(false)}
-      onMouseLeave={() => !isMobile && !isTablet && setIsCollapsed(true)}
-      className={clsx(
-        "bg-[var(--bg-app)] flex flex-col h-full sidebar-scroll overflow-y-auto transition-all duration-300",
-        !isMobile && !isTablet ? (isCollapsed ? "w-20" : "w-64") : "w-full",
-        !isMobile && !isTablet && "border-r border-[var(--border-main)]"
-      )}
-    >
-      <div className={clsx(
-        "p-8 pb-6 flex items-center sticky top-0 bg-[var(--bg-app)] z-10 transition-all duration-300",
-        isCollapsed && !isMobile && !isTablet ? "justify-center px-4" : "justify-between"
-      )}>
-        <Link to="/dashboard" className="flex items-center gap-3 text-[var(--text-main)] font-bold text-xl tracking-tight group">
-          <div className="w-9 h-9 bg-[var(--accent-main)] rounded-xl flex items-center justify-center text-[var(--bg-card)] shadow-lg transition-transform duration-300 shrink-0">
-            <Sparkles size={20} />
-          </div>
-          {(!isCollapsed || isMobile || isTablet) && (
-            <span className="font-sans whitespace-nowrap overflow-hidden text-[var(--text-main)]">AssignMate</span>
-          )}
-        </Link>
-
-        {(isMobile || isTablet) && (
-          <button
-            onClick={() => setIsOpen(false)}
-            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-lg transition-all duration-200 active:scale-90"
+  const sidebarContent = (
+    <div className={clsx(
+      "flex flex-col h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-main)] py-3 transition-all duration-500 shadow-[inset_-1px_0_0_rgba(0,0,0,0.05)]",
+      isMobile || isTablet ? "w-full" : "w-20"
+    )}>
+      {/* Brand Identity / Logo */}
+      <div className="flex justify-center mb-3 px-4 pt-2">
+        <Link to="/dashboard" className="relative flex items-center justify-center">
+          <motion.div 
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            className="w-12 h-12 bg-[var(--text-main)] rounded-[1.2rem] flex items-center justify-center text-[var(--bg-card)] shadow-[0_12px_25px_rgba(0,0,0,0.1)] relative z-10 overflow-hidden"
           >
-            <motion.div whileHover={{ scale: 1.1 }}>
-              <X size={20} />
-            </motion.div>
-          </button>
-        )}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
+            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-[var(--bg-card)]" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2ZM12 15.27L8.63 16.76L12 8.54L15.37 16.76L12 15.27Z" />
+            </svg>
+          </motion.div>
+        </Link>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1.5">
-        {(!isCollapsed || isMobile || isTablet) && (
-          <div className="px-4 mb-4">
-            <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.2em]">Main Menu</span>
-          </div>
-        )}
+      {/* Single Horizontal Separator */}
+      <div className="mx-6 mb-6 border-b border-[var(--text-main)] opacity-60" />
+
+      {/* Navigation Stack */}
+      <nav className="flex-1 flex flex-col items-center gap-4">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -101,110 +101,249 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.path}
               to={item.path}
               onClick={() => setIsOpen(false)}
-              title={isCollapsed ? item.label : undefined}
               className={clsx(
-                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden",
-                isActive
-                  ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm border border-[var(--border-main)]'
-                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]',
-                isCollapsed && !isMobile && !isTablet && "justify-center px-0"
+                "group relative flex flex-col items-center gap-1 w-full px-2 py-2 transition-all outline-none rounded-xl",
+                isActive ? "bg-[var(--bg-card)] shadow-[0_8px_20px_rgba(0,0,0,0.04)] ring-1 ring-[var(--border-main)]" : "hover:bg-[var(--text-main)]/[0.02]"
               )}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="active-pill"
-                  className="absolute left-0 w-1 h-5 bg-[var(--accent-main)] rounded-r-full"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              <motion.div
-                whileHover={{ scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              >
-                <item.icon
-                  size={18}
+              {/* Active High-Fidelity Indicator Pill */}
+              <AnimatePresence>
+                {isActive && (
+                  <>
+                    <motion.div
+                      layoutId="sidebar-active-glow"
+                      className="absolute -inset-1 bg-gradient-to-br from-[var(--text-main)]/5 to-transparent rounded-xl blur-lg"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                    <motion.div
+                      layoutId="sidebar-active-indicator"
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--text-main)] rounded-full"
+                      initial={{ opacity: 0, x: 5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 5 }}
+                    />
+                  </>
+                )}
+              </AnimatePresence>
+
+              <div className={clsx(
+                "relative z-10 flex items-center justify-center transition-all duration-500",
+                isActive ? "text-[var(--text-main)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-main)]"
+              )}>
+                <item.icon 
+                  size={22} 
                   className={clsx(
-                    "transition-colors duration-300",
-                    isActive ? "text-[var(--accent-main)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-main)]"
+                    "transition-all duration-300",
+                    isActive ? "scale-110 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)]" : "group-hover:scale-110"
                   )}
                 />
-              </motion.div>
-              {(!isCollapsed || isMobile || isTablet) && (
-                <span className={clsx(
-                  "font-medium text-sm tracking-tight transition-colors duration-300 whitespace-nowrap",
-                  isActive ? "text-[var(--text-main)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-main)]"
-                )}>
-                  {item.label}
-                </span>
-              )}
+              </div>
+
+              <span className={clsx(
+                "text-[10.5px] capitalize tracking-tight transition-all duration-500",
+                isActive ? "text-[var(--text-main)] font-bold" : "text-[var(--text-muted)] font-medium group-hover:text-[var(--text-main)]"
+              )}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-[var(--border-main)] bg-[var(--bg-app)] sticky bottom-0 space-y-3">
-        <Link
-          to="/profile"
-          onClick={() => setIsOpen(false)}
-          className={clsx(
-            "p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-main)] shadow-sm group hover:border-[var(--accent-main)]/20 hover:shadow-md transition-all duration-500 block relative overflow-hidden",
-            isCollapsed && !isMobile && !isTablet && "p-1.5"
-          )}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--bg-app)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="flex items-center gap-3 relative z-10">
-            <motion.div
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              className="w-10 h-10 rounded-xl bg-[var(--accent-main)] flex items-center justify-center overflow-hidden shrink-0 shadow-lg transition-transform duration-300"
-            >
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <UserIcon size={20} className="text-[var(--bg-card)]" />
-              )}
-            </motion.div>
-            {(!isCollapsed || isMobile || isTablet) && (
-              <>
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <p className="text-[11px] font-black text-[var(--text-main)] truncate tracking-tight leading-none mb-1 uppercase">
-                    {user?.displayName?.split(' ')[0] || 'Scholar'}
-                  </p>
-                  <p className="text-[9px] text-[var(--text-muted)] truncate font-medium leading-none tracking-wider">
-                    {user?.email}
-                  </p>
-                </div>
-                <div className="w-6 h-6 rounded-full bg-[var(--bg-app)] flex items-center justify-center group-hover:bg-[var(--accent-main)] group-hover:text-[var(--bg-card)] transition-all duration-300">
-                  <ChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </>
-            )}
-          </div>
-        </Link>
+      {/* Profile Anchor & Context Popover */}
+      <div className="flex flex-col items-center gap-6 mt-auto relative">
         <button
-          onClick={handleLogout}
-          className={clsx(
-            "flex items-center gap-3 w-full rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-300",
-            isCollapsed && !isMobile && !isTablet ? "justify-center p-2" : "px-3 py-2"
-          )}
+          onClick={() => {
+            setIsProfileOpen(!isProfileOpen);
+            setIsNotificationOpen(false);
+          }}
+          className="group relative transition-all outline-none"
         >
-          <LogOut size={18} />
-          {(!isCollapsed || isMobile || isTablet) && <span className="font-medium text-sm">Logout</span>}
+          <div className="absolute -inset-2 bg-[var(--text-main)]/5 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          
+          <div className={clsx(
+            "relative z-10 w-11 h-11 rounded-full border-2 p-0.5 transition-all duration-500 group-hover:rotate-12",
+            isProfileOpen ? "border-[var(--text-main)] scale-110 shadow-lg" : "border-[var(--border-main)] group-hover:border-[var(--text-main)]"
+          )}>
+            <div className="w-full h-full rounded-full overflow-hidden bg-[var(--bg-card)] flex items-center justify-center shadow-lg">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="Scholar" className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon size={18} className="text-[var(--text-main)] opacity-40" />
+              )}
+            </div>
+          </div>
         </button>
+
+        {/* High-Fidelity Profile Popover */}
+        <AnimatePresence>
+          {isProfileOpen && (
+            <>
+              {/* Invisible Click-away Overlay */}
+              <div 
+                className="fixed inset-0 z-40 bg-transparent" 
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  setIsNotificationOpen(false);
+                }} 
+              />
+              
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, x: isMobile || isTablet ? 0 : 20, y: isMobile || isTablet ? 20 : 10 }}
+                animate={{ opacity: 1, scale: 1, x: isMobile || isTablet ? 0 : 90, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, x: isMobile || isTablet ? 0 : 20, y: isMobile || isTablet ? 20 : 10 }}
+                className={clsx(
+                  "fixed z-50 w-72 bg-[var(--bg-app)] border border-[var(--border-main)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-2xl overflow-hidden backdrop-blur-xl",
+                  isMobile || isTablet ? "left-1/2 -translate-x-1/2 bottom-[15%]" : "left-0 bottom-12"
+                )}
+              >
+                {/* Header: Identity */}
+                <div className="p-5 border-b border-[var(--border-main)] bg-gradient-to-br from-white/[0.02] to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-[var(--bg-card)] border border-[var(--border-main)] flex items-center justify-center shadow-inner">
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} alt="Scholar" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon size={20} className="text-[var(--text-main)] opacity-40" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[var(--text-main)] font-bold text-sm">{user?.displayName || 'Veera Nithin'}</span>
+                      <span className="text-[var(--text-muted)] text-[11px] truncate max-w-[160px]">{user?.email || 'veeranithin9@gmail.com'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* List: Attributes & Actions */}
+                <div className="py-2">
+                  {[
+                    { icon: UserIcon, label: 'My Profile', onClick: () => navigate('/profile') },
+                    { icon: Settings, label: 'Account', onClick: () => navigate('/settings') },
+                    { icon: CreditCard, label: 'Billing', onClick: () => navigate('/billing') },
+                    { 
+                      icon: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? Sun : Moon, 
+                      label: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? 'Light Mode' : 'Dark Mode', 
+                      onClick: async () => {
+                        const current = profile?.preferences?.theme || 'light';
+                        const next = (current === 'dark' || current === 'midnight') ? 'light' : 'dark';
+                        
+                        // Optimistic UI: Apply theme immediately
+                        const root = document.documentElement;
+                        root.classList.remove('light', 'dark', 'midnight', 'nord', 'coffee', 'emerald', 'rose', 'amber');
+                        root.classList.add(next);
+
+                        if (user) {
+                          try {
+                            await updateUserProfile(user.uid, { 
+                              preferences: { ...(profile?.preferences || {}), theme: next } 
+                            } as UserProfile);
+                            await refreshProfile();
+                          } catch (error) {
+                            console.error("Theme persistent sync failed:", error);
+                          }
+                        }
+                      } 
+                    },
+                    { icon: Bell, label: 'Notification', hasArrow: true, onClick: () => setIsNotificationOpen(!isNotificationOpen) },
+                  ].map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (item.onClick) item.onClick();
+                        if (!item.hasArrow) setIsProfileOpen(false);
+                      }}
+                      className={clsx(
+                        "w-full px-4 py-2.5 flex items-center gap-3 transition-all rounded-xl group/popover",
+                        item.hasArrow && isNotificationOpen ? "bg-[var(--text-main)]/5 text-[var(--text-main)]" : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--text-main)]/[0.03]"
+                      )}
+                    >
+                      <item.icon size={18} className={clsx("transition-transform group-hover/popover:scale-110", item.hasArrow && isNotificationOpen ? "opacity-100" : "opacity-60 group-hover/popover:opacity-100")} />
+                      <span className="text-[13px] font-medium flex-1 text-left">{item.label}</span>
+                      {item.hasArrow && <ChevronRight size={14} className={clsx("transition-transform duration-300", isNotificationOpen ? "rotate-90 opacity-100" : "opacity-30")} />}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Footer: Logout */}
+                <div className="p-2 border-t border-[var(--border-main)]">
+                  <button
+                    onClick={async () => {
+                      await signOut();
+                      navigate('/login');
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-500/5 rounded-xl transition-all font-semibold text-[13px]"
+                  >
+                    <LogOut size={18} />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Notification Settings Side-Window */}
+        <AnimatePresence>
+          {isProfileOpen && isNotificationOpen && (
+            <motion.div
+              initial={{ opacity: 0, x: isMobile || isTablet ? 0 : 70, scale: 0.95 }}
+              animate={{ opacity: 1, x: isMobile || isTablet ? 0 : 380, scale: 1 }}
+              exit={{ opacity: 0, x: isMobile || isTablet ? 0 : 70, scale: 0.95 }}
+              className={clsx(
+                "fixed z-50 w-72 bg-[var(--bg-app)] border border-[var(--border-main)] shadow-[0_20px_50px_rgba(0,0,0,0.3)] rounded-2xl overflow-hidden backdrop-blur-xl p-5 flex flex-col gap-5",
+                isMobile || isTablet ? "left-1/2 -translate-x-1/2 bottom-[45%]" : "left-0 bottom-12"
+              )}
+            >
+              <div className="flex items-center gap-3 border-b border-[var(--border-main)] pb-3">
+                <Bell size={18} className="text-amber-500" />
+                <span className="text-sm font-bold text-[var(--text-main)]">Alert Settings</span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                {[
+                  { key: 'studyReminders', label: 'Study Alerts', desc: 'Reminders for synthesis' },
+                  { key: 'assignmentStatus', label: 'Status Updates', desc: 'Phase progress alerts' },
+                  { key: 'newBlueprints', label: 'Blueprints', desc: 'New template notifications' },
+                  { key: 'systemAlerts', label: 'Critical', desc: 'Security & system alerts' },
+                ].map((pref) => (
+                  <button
+                    key={pref.key}
+                    onClick={() => toggleNotif(pref.key as keyof typeof notifPreferences)}
+                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--text-main)]/[0.03] transition-all group/pref"
+                  >
+                    <div className="flex flex-col text-left">
+                      <span className="text-[12px] font-bold text-[var(--text-main)]">{pref.label}</span>
+                      <span className="text-[10px] text-[var(--text-muted)]">{pref.desc}</span>
+                    </div>
+                    <div className={clsx(
+                      "w-9 h-5 rounded-full relative transition-all duration-300 flex items-center px-1",
+                      notifPreferences[pref.key as keyof typeof notifPreferences] ? "bg-amber-400" : "bg-[var(--border-main)]"
+                    )}>
+                      <motion.div
+                        animate={{ x: notifPreferences[pref.key as keyof typeof notifPreferences] ? 16 : 0 }}
+                        className="w-3 h-3 bg-white rounded-full shadow-sm"
+                      />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <div className={clsx(
-        "hidden lg:flex bg-[#FBFBFA] h-screen flex-col sticky top-0 transition-all duration-300",
-        isCollapsed ? "w-20" : "w-64"
+        "hidden lg:block h-screen sticky top-0 z-50",
+        isMobile || isTablet ? "w-0 overflow-hidden" : "w-20"
       )}>
-        {content}
+        {sidebarContent}
       </div>
 
-      {/* Mobile/Tablet Drawer */}
+      {/* Mobile/Tablet Drawer Shell */}
       <AnimatePresence mode="wait">
         {isOpen && (
           <>
@@ -213,21 +352,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-[60] lg:hidden"
+              className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-[60] lg:hidden"
             />
             <motion.div
-              initial={{ x: -280, opacity: 0 }}
+              initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -280, opacity: 0 }}
-              transition={{
-                type: 'spring',
-                damping: 30,
-                stiffness: 300,
-                mass: 0.8
-              }}
-              className="fixed inset-y-0 left-0 w-64 bg-[#FBFBFA] z-[70] lg:hidden shadow-2xl"
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 w-64 bg-[var(--bg-app)] z-[70] lg:hidden shadow-2xl overflow-hidden"
             >
-              {content}
+              {sidebarContent}
             </motion.div>
           </>
         )}

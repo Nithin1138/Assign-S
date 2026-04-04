@@ -16,13 +16,17 @@ import {
   Layout as LayoutIcon,
   Trash2,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Save,
+  Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../auth/context/AuthContext';
 import {
   getUserTemplates,
   deleteTemplate,
+  saveAsTemplate,
   Document as Assignment
 } from '../../../shared/services/db';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
@@ -33,12 +37,14 @@ const TemplateCard = ({
   template,
   onPreview,
   onUse,
-  onDelete
+  onDelete,
+  isGlassEnabled
 }: {
   template: any,
   onPreview: () => void,
   onUse: () => void,
-  onDelete?: () => void
+  onDelete?: () => void,
+  isGlassEnabled?: boolean
 }) => {
   const Icon = template.icon || FileText;
 
@@ -55,7 +61,10 @@ const TemplateCard = ({
         style={{ background: `linear-gradient(45deg, var(--accent-main), transparent, var(--accent-main))` }} />
 
       {/* Main Card Body */}
-      <div className="relative flex h-full flex-col overflow-hidden rounded-[2.2rem] bg-[var(--bg-card)] p-7 shadow-[0_10px_40px_rgba(0,0,0,0.03)] ring-1 ring-[var(--border-main)] transition-all duration-500 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.12)]">
+      <div className={clsx(
+        "relative flex h-full flex-col overflow-hidden rounded-[2.2rem] p-7 transition-all duration-500 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.12)]",
+        isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] shadow-[0_10px_40px_rgba(0,0,0,0.03)] ring-1 ring-[var(--border-main)]"
+      )}>
 
         {/* Decorative elements */}
         <div className="absolute right-0 top-0 -mr-16 -mt-16 h-32 w-32 rounded-full bg-[var(--accent-main)] opacity-[0.02] blur-3xl transition-opacity duration-700 group-hover:opacity-[0.08]" />
@@ -101,19 +110,25 @@ const TemplateCard = ({
           )}
         </div>
 
-        <div className="relative z-10 mt-auto flex shrink-0 items-center gap-2.5 pt-4">
+        <div className="relative z-10 mt-auto flex shrink-0 items-center justify-between gap-4 pt-6">
           <button
-            onClick={onUse}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--text-main)] py-3.5 text-[10px] font-black uppercase tracking-widest text-[var(--bg-card)] shadow-xl transition-all duration-300 active:scale-95 group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.15)] group-hover:-translate-y-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUse();
+            }}
+            className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-[var(--text-main)] py-4 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--bg-card)] shadow-[0_15px_30px_rgba(0,0,0,0.15)] transition-all duration-300 hover:scale-[1.03] active:scale-95 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.25)]"
           >
-            <Play size={14} /> Use Template
+            <Play size={14} className="fill-current" /> Use Template
           </button>
           <button
-            onClick={onPreview}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview();
+            }}
             title="Inspect Architecture"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)] text-[var(--text-muted)] transition-all duration-300 hover:border-[var(--text-main)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] hover:shadow-lg active:scale-95"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 text-[var(--text-muted)] backdrop-blur-sm transition-all duration-300 hover:border-[var(--text-main)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] hover:shadow-lg active:scale-95"
           >
-            <LayoutIcon size={18} />
+            <LayoutIcon size={20} />
           </button>
         </div>
       </div>
@@ -122,13 +137,16 @@ const TemplateCard = ({
 };
 
 const TemplatesPage = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isGlassEnabled = profile?.preferences?.glassmorphism ?? false;
   const navigate = useNavigate();
   const [userTemplates, setUserTemplates] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Assignment | null>(null);
   const [previewMode, setPreviewMode] = useState<'structure' | 'document'>('structure');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
 
   const standardTemplates = [
     {
@@ -240,12 +258,19 @@ const TemplatesPage = () => {
     t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.topic.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).filter(t => {
+    if (activeCategory === 'all') return true;
+    if (activeCategory === 'my-templates') return false;
+    return t.topic.toLowerCase().includes(activeCategory.toLowerCase());
+  });
 
   const filteredUserTemplates = userTemplates.filter(t =>
     t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.topic.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).filter(t => {
+    if (activeCategory === 'all' || activeCategory === 'my-templates') return true;
+    return (t.topic || 'General').toLowerCase().includes(activeCategory.toLowerCase());
+  });
 
   return (
     <Layout>
@@ -275,100 +300,84 @@ const TemplatesPage = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="relative z-10 mx-auto max-w-7xl px-6 py-8 md:px-12 md:py-12"
+          className="relative z-10 mx-auto max-w-7xl px-3 py-2 md:px-8 md:py-6"
         >
-          <header className="mb-20 flex flex-col justify-between gap-12 lg:flex-row lg:items-end">
+          <header className="mb-10 flex flex-col lg:flex-row lg:items-start justify-between gap-10">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-3xl space-y-6"
+              className="max-w-3xl space-y-4 pt-4"
             >
-
-              <div className="space-y-2">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--accent-main)]">Research Repository</span>
+                  <div className="h-px w-8 bg-[var(--accent-main)] opacity-30" />
+                </div>
                 <h1 className="text-5xl font-black leading-[0.9] tracking-[-0.04em] text-[var(--text-main)] sm:text-7xl md:text-8xl">
                   Academic{' '}
                   <span className="relative inline-block italic font-serif text-[var(--text-muted)]">
                     Blueprints
-                    <svg className="absolute -bottom-2 left-0 w-full opacity-30" viewBox="0 0 100 10" preserveAspectRatio="none">
-                      <path d="M0 5 Q 25 0, 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="2" />
-                    </svg>
                   </span>
                 </h1>
               </div>
 
-              <p className="max-w-xl text-lg font-medium leading-relaxed text-[var(--text-muted)] lg:text-xl">
+              <p className="max-w-xl text-lg font-medium leading-relaxed text-[var(--text-muted)] lg:text-xl opacity-70">
                 Precision-engineered foundations for high-impact scholarship.
                 Choose a structure designed to maximize analytical clarity.
               </p>
             </motion.div>
 
-            <div className="flex w-full flex-col gap-10 lg:w-auto lg:items-end">
-              <div className="flex flex-wrap items-center gap-8 justify-end">
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-end">
-                    <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] opacity-40 leading-none">Archived Architectures</span>
-                    <span className="text-xl font-black text-[var(--text-main)] tracking-tighter">{userTemplates.length}</span>
-                  </div>
-                  <div className="h-8 w-px bg-[var(--border-main)]" />
-                </div>
+            <div className="flex flex-col gap-6 lg:items-end w-full lg:max-w-md group/search lg:pt-14">
+              {/* Vertical Action Suite - Search First, Action Last */}
+              <div className="relative w-full">
+                <div className="absolute -inset-1 rounded-[2.2rem] bg-gradient-to-r from-[var(--accent-main)] via-[var(--accent-main)]/20 to-[var(--accent-main)] opacity-0 blur-xl transition-all duration-700 group-focus-within/search:opacity-30 group-hover/search:opacity-15" />
+                <div className="absolute inset-0 rounded-[1.8rem] bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-10" />
 
-                {userTemplates.length > 0 && (
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end">
-                      <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] opacity-40 leading-none">Primary Cluster</span>
-                      <span className="text-xl font-black text-[var(--text-main)] tracking-tighter italic font-serif">
-                        {(() => {
-                          const topics = userTemplates.map(t => t.topic || 'General');
-                          return topics.reduce((a, b, i, arr) => (arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b), topics[0]);
-                        })()}
-                      </span>
-                    </div>
-                    <div className="h-8 w-px bg-[var(--border-main)] opacity-50" />
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border-main)] shadow-sm">
-                  <div className={clsx("w-2 h-2 rounded-full", refreshing ? "bg-amber-400 animate-pulse" : "bg-emerald-500")} />
-                  <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{refreshing ? 'Syncing...' : 'Database Synced'}</span>
+                <div className="relative z-20 flex items-center gap-3 rounded-[1.8rem] border border-[var(--border-main)] bg-[var(--bg-card)]/80 p-2 pl-6 pr-2 shadow-[0_15px_40px_rgba(0,0,0,0.04)] backdrop-blur-3xl transition-all duration-500 hover:border-[var(--text-main)] group-focus-within/search:border-[var(--text-main)]">
+                  <Search className="h-4 w-4 text-[var(--text-muted)] transition-all duration-500 group-focus-within/search:text-[var(--text-main)] group-focus-within/search:rotate-90" />
+                  <input
+                    type="search"
+                    placeholder="Search blueprints..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1 bg-transparent py-3 text-sm font-bold tracking-tight text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]/40"
+                  />
+                  <button
+                    onClick={fetchTemplates}
+                    disabled={refreshing}
+                    className={clsx(
+                      "flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-app)] text-[var(--text-muted)] transition-all hover:bg-[var(--text-main)] hover:text-[var(--bg-card)]",
+                      refreshing && "animate-spin"
+                    )}
+                  >
+                    <RefreshCw size={16} />
+                  </button>
                 </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row items-center gap-5 w-full group/search">
-                <button
-                  onClick={fetchTemplates}
-                  disabled={refreshing}
-                  type="button"
-                  className={clsx(
-                    'flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.8rem] border border-[var(--border-main)] bg-[var(--bg-card)]/50 backdrop-blur-xl transition-all duration-500 shadow-sm',
-                    'text-[var(--text-muted)] hover:border-[var(--text-main)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] hover:shadow-xl active:scale-90 disabled:opacity-50'
-                  )}
-                  title="Sync Archives"
-                >
-                  <RefreshCw className={clsx('h-6 w-6 transition-transform duration-700 group-hover/search:rotate-180', refreshing && 'animate-spin')} />
-                </button>
-
-                <div className="relative w-full lg:w-[500px]">
-                  {/* Premium Inner Glow & Shadow */}
-                  <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-r from-[var(--accent-main)] via-[var(--accent-main)]/20 to-[var(--accent-main)] opacity-0 blur-xl transition-all duration-700 group-focus-within/search:opacity-30 group-hover/search:opacity-15" />
-
-                  <div className="absolute inset-0 rounded-[2.2rem] bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-10" />
-
-                  <div className="relative z-20 flex items-center gap-4 rounded-[2.2rem] border border-[var(--border-main)] bg-[var(--bg-card)]/80 p-3 pl-7 pr-3 shadow-[0_20px_50px_rgba(0,0,0,0.04)] backdrop-blur-3xl transition-all duration-500 hover:border-[var(--text-main)] group-focus-within/search:border-[var(--text-main)] group-focus-within/search:shadow-[0_40px_80px_rgba(0,0,0,0.1)]">
-                    <Search
-                      className="h-5 w-5 text-[var(--text-muted)] transition-all duration-500 group-focus-within/search:text-[var(--text-main)] group-focus-within/search:rotate-90 group-focus-within/search:scale-110"
-                      aria-hidden
-                    />
-                    <input
-                      type="search"
-                      placeholder="Identify specific blueprint architecture..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="flex-1 bg-transparent py-4 text-base font-bold tracking-tight text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]/40"
-                    />
-                  </div>
+              {/* Stats Suite - Below Search */}
+              <div className="flex items-center gap-3 p-1 bg-[var(--bg-card)]/40 border border-[var(--border-main)] rounded-2xl backdrop-blur-xl max-w-fit">
+                <div className="flex items-center gap-2 px-3 py-1.5 border-r border-[var(--border-main)]">
+                  <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] opacity-40">Architectures</span>
+                  <span className="text-sm font-black text-[var(--text-main)]">{userTemplates.length}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5">
+                  <div className={clsx("w-2 h-2 rounded-full", refreshing ? "bg-amber-400 animate-pulse" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]")} />
+                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest leading-none">{refreshing ? 'Syncing' : 'Synced'}</span>
                 </div>
               </div>
+
+              {/* Action Button - Below Stats */}
+              <button
+                onClick={() => setIsCreating(true)}
+                className="group relative flex w-full lg:w-auto items-center justify-center gap-3 px-8 py-4 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-black uppercase tracking-widest text-[10px] overflow-hidden transition-all hover:scale-[1.02] active:scale-95 shadow-2xl shadow-black/10"
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-amber-500/40 blur-xl scale-150 rotate-12 -translate-y-1/2" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity duration-500 bg-gradient-to-br from-indigo-400 via-transparent to-amber-400" />
+                <Plus size={16} className="relative z-10" />
+                <span className="relative z-10">Create Template</span>
+              </button>
             </div>
           </header>
 
@@ -382,20 +391,56 @@ const TemplatesPage = () => {
               ))}
             </div>
           ) : (
-            <div className="space-y-24">
+            <div className="space-y-4">
+              {/* Unified & Immersive Filter Suite */}
+              <div className="flex flex-wrap items-center p-1.5 bg-[var(--bg-card)]/35 border border-[var(--border-main)] rounded-full backdrop-blur-xl max-w-fit shadow-sm">
+                {[
+                  { id: 'all', label: 'All', count: userTemplates.length + standardTemplates.length },
+                  { id: 'my-templates', label: 'Mine', count: userTemplates.length },
+                  { id: 'shared', label: 'Shared', count: 0 },
+                  { id: 'academic', label: 'Academic', count: userTemplates.filter(t => (t.topic || '').toLowerCase().includes('academic')).length + standardTemplates.filter(t => (t.topic || '').toLowerCase().includes('academic')).length },
+                  { id: 'research', label: 'Research', count: userTemplates.filter(t => (t.topic || '').toLowerCase().includes('research')).length + standardTemplates.filter(t => (t.topic || '').toLowerCase().includes('research')).length },
+                  { id: 'business', label: 'Business', count: userTemplates.filter(t => (t.topic || '').toLowerCase().includes('business')).length + standardTemplates.filter(t => (t.topic || '').toLowerCase().includes('business')).length },
+                  { id: 'creative', label: 'Creative', count: userTemplates.filter(t => (t.topic || '').toLowerCase().includes('creative')).length + standardTemplates.filter(t => (t.topic || '').toLowerCase().includes('creative')).length },
+                  { id: 'technical', label: 'Technical', count: userTemplates.filter(t => (t.topic || '').toLowerCase().includes('technical')).length + standardTemplates.filter(t => (t.topic || '').toLowerCase().includes('technical')).length }
+                ].map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={clsx(
+                      "relative flex items-center gap-2 px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em] transition-all duration-500",
+                      activeCategory === cat.id ? "text-[var(--bg-card)]" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                    )}
+                  >
+                    {activeCategory === cat.id && (
+                      <motion.div
+                        layoutId="activeFilterGlow"
+                        className="absolute inset-0 bg-[var(--accent-main)] shadow-xl shadow-[var(--accent-main)]/20 rounded-full"
+                        transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                      />
+                    )}
+                    <span className="relative z-10">{cat.label}</span>
+                    <span className={clsx("relative z-10 opacity-40 text-[8px]", activeCategory === cat.id && "text-[var(--bg-card)] opacity-60")}>
+                      {cat.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
               <AnimatePresence mode="wait">
                 {(filteredUserTemplates.length > 0 || filteredStandardTemplates.length > 0) ? (
                   <motion.div
                     key="content"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -40 }}
+                    exit={{ opacity: 0, y: -30 }}
                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-24"
+                    className="space-y-10"
                   >
+
                     {filteredUserTemplates.length > 0 && (
                       <section>
-                        <div className="mb-14 flex items-center gap-6">
+                        <div className="mb-8 flex items-center gap-6">
                           <div className="flex items-center gap-3">
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--bg-card)] text-[10px] font-black tracking-widest text-[var(--text-main)] shadow-sm ring-1 ring-[var(--border-main)]">
                               01
@@ -422,6 +467,7 @@ const TemplatesPage = () => {
                                 }}
                                 onUse={() => handleUseTemplate(template)}
                                 onDelete={() => handleDeleteTemplate(template.id)}
+                                isGlassEnabled={isGlassEnabled}
                               />
                             </motion.div>
                           ))}
@@ -456,6 +502,7 @@ const TemplatesPage = () => {
                                 setPreviewMode('structure');
                               }}
                               onUse={() => handleUseTemplate(template)}
+                              isGlassEnabled={isGlassEnabled}
                             />
                           </motion.div>
                         ))}
@@ -463,18 +510,33 @@ const TemplatesPage = () => {
                     </section>
                   </motion.div>
                 ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="mx-auto max-w-2xl rounded-[3rem] border-2 border-dashed border-[var(--border-main)] bg-[var(--bg-card)]/50 py-24 text-center backdrop-blur-xl shadow-2xl shadow-black/5"
-                  >
-                    <div className="group mx-auto mb-10 flex h-32 w-32 items-center justify-center rounded-full bg-[var(--bg-app)] ring-1 ring-[var(--border-main)] shadow-inner transition-transform duration-500 hover:scale-110">
-                      <Search size={48} className="text-[var(--text-muted)] opacity-30 transition-opacity group-hover:opacity-60" />
+                  activeCategory === 'shared' ? (
+                    <div className="mx-auto max-w-2xl py-24 text-center">
+                      <div className="group mx-auto mb-10 flex h-32 w-32 items-center justify-center rounded-full bg-[var(--bg-app)] ring-1 ring-[var(--border-main)] shadow-inner transition-transform duration-500 hover:scale-110">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12 text-[var(--text-muted)] opacity-40">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <line x1="19" y1="8" x2="19" y2="14" />
+                          <line x1="16" y1="11" x2="22" y2="11" />
+                        </svg>
+                      </div>
+                      <h3 className="mb-3 text-3xl font-black tracking-tight text-[var(--text-main)]">No Shared Architectures</h3>
+                      <p className="text-lg font-medium text-[var(--text-muted)]">No blueprint architectures have been shared with your workspace yet.</p>
                     </div>
-                    <h3 className="mb-3 text-3xl font-black tracking-tight text-[var(--text-main)]">No architectures found</h3>
-                    <p className="text-lg font-medium text-[var(--text-muted)]">Try adjusting your search terms or create a custom extraction.</p>
-                  </motion.div>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mx-auto max-w-2xl rounded-[3rem] border-2 border-dashed border-[var(--border-main)] bg-[var(--bg-card)]/50 py-24 text-center backdrop-blur-xl shadow-2xl shadow-black/5"
+                    >
+                      <div className="group mx-auto mb-10 flex h-32 w-32 items-center justify-center rounded-full bg-[var(--bg-app)] ring-1 ring-[var(--border-main)] shadow-inner transition-transform duration-500 hover:scale-110">
+                        <Search size={48} className="text-[var(--text-muted)] opacity-30 transition-opacity group-hover:opacity-60" />
+                      </div>
+                      <h3 className="mb-3 text-3xl font-black tracking-tight text-[var(--text-main)]">No architectures found</h3>
+                      <p className="text-lg font-medium text-[var(--text-muted)]">Try adjusting your search terms or create a custom extraction.</p>
+                    </motion.div>
+                  )
                 )}
               </AnimatePresence>
             </div>
@@ -703,7 +765,144 @@ const TemplatesPage = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <CreateTemplateModal
+        isOpen={isCreating}
+        onClose={() => setIsCreating(false)}
+        onSuccess={() => {
+          setIsCreating(false);
+          fetchTemplates();
+        }}
+      />
     </Layout>
+  );
+};
+
+const CreateTemplateModal = ({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess: () => void }) => {
+  const { user } = useAuth();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [sectionsText, setSectionsText] = useState('Introduction\nBody\nConclusion');
+  const [topic, setTopic] = useState('General');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!user || !title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const parsedSections = sectionsText
+        .split('\n')
+        .filter(s => s.trim())
+        .map((s, i) => ({ id: String(i + 1), title: s.trim(), content: '' }));
+
+      await saveAsTemplate(user.uid, {
+        name: title,
+        description,
+        sections: parsedSections,
+        topic,
+        metadataFields: {},
+        style: {}
+      });
+
+      toast.success('Architecture Archived');
+      onSuccess();
+      setTitle('');
+      setDescription('');
+      setSectionsText('Introduction\nBody\nConclusion');
+      setTopic('General');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-stone-900/40 backdrop-blur-md"
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-md rounded-[2rem] border border-[var(--border-main)] bg-[var(--bg-card)] p-8 shadow-[0_50px_100px_rgba(0,0,0,0.12)]"
+          >
+            <button onClick={onClose} className="absolute right-6 top-6 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+              <X size={20} />
+            </button>
+
+            <div className="mb-8 flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--text-main)] text-[var(--bg-card)] shadow-lg shadow-black/10">
+                <Plus size={20} />
+              </div>
+              <h2 className="text-2xl font-black tracking-tight text-[var(--text-main)]">New Template</h2>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] opacity-50 ml-1">Template Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. My Lab Report"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 px-5 py-3.5 text-sm font-bold text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] shadow-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] opacity-50 ml-1">Context/Description</label>
+                <textarea
+                  placeholder="What is this structure for?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full h-20 rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 px-5 py-3.5 text-xs font-medium text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] resize-none shadow-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] opacity-50">Structural Units <span className="opacity-40 italic">(1 per line)</span></label>
+                </div>
+                <textarea
+                  value={sectionsText}
+                  onChange={(e) => setSectionsText(e.target.value)}
+                  className="w-full h-32 rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/30 px-5 py-3.5 font-mono text-xs font-medium text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] shadow-inner"
+                />
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="group relative w-full h-14 flex items-center justify-center gap-3 overflow-hidden rounded-xl bg-[var(--text-main)] text-[10px] font-black uppercase tracking-[0.2em] text-[var(--bg-card)] shadow-lg shadow-black/5 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                {saving ? (
+                  <RefreshCw className="animate-spin" size={14} />
+                ) : (
+                  <>
+                    <Save size={14} />
+                    <span>Archive Template</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

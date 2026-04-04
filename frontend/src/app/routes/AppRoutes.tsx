@@ -11,10 +11,12 @@ import SignupPage from '../../features/auth/pages/SignupPage';
 // Protected pages — lazy-loaded so the initial bundle stays lean
 const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage'));
 const ProfilePage = lazy(() => import('../../pages/ProfilePage'));
+const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const GeneratePage = lazy(() => import('../../features/templates/pages/GeneratePage'));
 const TemplatesPage = lazy(() => import('../../features/templates/pages/TemplatesPage'));
 const DocumentsPage = lazy(() => import('../../features/dashboard/pages/DocumentsPage'));
 const EditorPage = lazy(() => import('../../features/editor/pages/EditorPage'));
+import BillingPage from '../../pages/BillingPage';
 
 // Shared fallback while a lazy chunk is loading
 const PageLoader = () => (
@@ -56,6 +58,15 @@ const AppRoutes = () => {
         />
 
         <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/generate"
           element={
             <ProtectedRoute>
@@ -87,6 +98,15 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <EditorPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/billing"
+          element={
+            <ProtectedRoute>
+              <BillingPage />
             </ProtectedRoute>
           }
         />

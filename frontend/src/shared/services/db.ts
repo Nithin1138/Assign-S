@@ -24,7 +24,7 @@ export interface UserProfile {
   institution?: string;
   fieldOfStudy?: string;
   preferences?: {
-    theme?: 'light' | 'dark' | 'midnight' | 'emerald' | 'rose' | 'amber' | 'nord' | 'coffee';
+    theme?: 'light' | 'dark' | 'midnight' | 'emerald' | 'rose' | 'amber' | 'nord' | 'coffee' | 'system';
     accentColor?: string;
     fontFamily?: 'sans' | 'serif' | 'mono';
     glassmorphism?: boolean;
@@ -287,4 +287,61 @@ export const subscribeToUserDocuments = (userId: string, callback: (docs: Docume
 export const subscribeToUserTemplates = (userId: string, callback: (docs: Document[]) => void) => {
   getUserTemplates(userId).then(callback);
   return () => {};
+};
+
+// --------------------------------------------------
+// Sharing Operations
+// --------------------------------------------------
+
+export const getDocumentByShareCode = async (code: string): Promise<Document | null> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/share/${code}`, { headers });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return mapDoc(data);
+  } catch (error) {
+    console.error("Get Shared Document failed:", error);
+    return null;
+  }
+};
+
+export const saveSharedDocument = async (code: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/save-shared/${code}`, {
+      method: 'POST',
+      headers,
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Save Shared Document failed:", error);
+  }
+};
+
+export const getSharedDocuments = async (userId: string): Promise<Document[]> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/list/shared?user_id=${userId}`, { headers });
+    const data = await response.json();
+    return data.map(mapDoc);
+  } catch (error) {
+    console.error("List Shared Documents failed:", error);
+    return [];
+  }
+};
+
+export const generateShareCode = async (docId: string): Promise<string | null> => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/${docId}/share`, {
+      method: 'POST',
+      headers,
+    });
+    const json = await response.json();
+    return json?.data?.share_code || json?.share_code || null;
+  } catch (error) {
+    console.error("Generate Share Code failed:", error);
+    return null;
+  }
 };

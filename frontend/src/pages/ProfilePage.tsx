@@ -238,7 +238,7 @@ const ProfilePage = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--text-main)]/50 to-[var(--text-main)]" />
           </div>
 
-          <div className="relative z-10 w-full max-w-7xl mx-auto px-6 flex flex-col items-center text-center">
+          <div className="relative z-10 w-full max-w-7xl mx-auto px-3 flex flex-col items-center text-center">
             <motion.div
               initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
               animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -331,7 +331,7 @@ const ProfilePage = () => {
           <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-[var(--bg-app)] to-transparent" />
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 -mt-40 relative z-30">
+        <div className="max-w-7xl mx-auto px-3 -mt-10 relative z-30">
           {/* Advanced Bento Stats */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-24">
             <motion.div
@@ -404,7 +404,7 @@ const ProfilePage = () => {
 
           {/* Main Content Split */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-            {/* Left Column: Settings */}
+            {/* Left Column: Stats & Identity */}
             <div className="lg:col-span-8 space-y-16">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -482,57 +482,6 @@ const ProfilePage = () => {
                   </div>
                 </div>
               </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className={clsx(
-                  "p-16 rounded-[5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.04)] border border-[var(--border-main)] relative overflow-hidden group",
-                  isGlassEnabled ? "glass-card" : "bg-[var(--bg-card)]"
-                )}
-              >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent-main)]/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-[var(--accent-main)]/10 transition-all duration-1000" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-                  <div>
-                    <h2 className="text-5xl font-black text-[var(--text-main)] tracking-tighter uppercase">Aesthetics</h2>
-                    <p className="text-[var(--text-muted)] font-medium mt-2">Personalize your neural interface and visual experience.</p>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsAestheticModalOpen(true)}
-                    className="px-10 py-5 bg-[var(--bg-app)] text-[var(--text-main)] border-2 border-[var(--border-main)] rounded-[2rem] font-black uppercase tracking-widest hover:border-[var(--accent-main)] transition-all flex items-center gap-3"
-                  >
-                    <Palette size={20} />
-                    Configure
-                  </motion.button>
-                </div>
-
-                <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
-                  <div className="p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)]">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Theme</p>
-                    <p className="text-sm font-bold text-[var(--text-main)] capitalize">{currentTheme}</p>
-                  </div>
-                  <div className="p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)]">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Accent</p>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: accentColor }} />
-                      <p className="text-sm font-bold text-[var(--text-main)] uppercase">{accentColor}</p>
-                    </div>
-                  </div>
-                  <div className="p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)]">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Font</p>
-                    <p className="text-sm font-bold text-[var(--text-main)] capitalize">{currentFont}</p>
-                  </div>
-                  <div className="p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)]">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Glass</p>
-                    <p className="text-sm font-bold text-[var(--text-main)]">{isGlassEnabled ? 'Active' : 'Inactive'}</p>
-                  </div>
-                </div>
-              </motion.div>
             </div>
 
             {/* Right Column: Preferences & Account */}
@@ -598,80 +547,8 @@ const ProfilePage = () => {
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, x: 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="bg-stone-950 p-16 rounded-[5rem] shadow-2xl text-white relative overflow-hidden group"
-              >
-                <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -mr-40 -mt-40 blur-[120px] group-hover:bg-white/10 transition-all duration-1000" />
-                <div className="relative z-10">
-                  <h2 className="text-4xl font-black tracking-tighter uppercase mb-12">Account</h2>
-                  <div className="space-y-8">
-                    <div className="p-8 bg-white/5 rounded-[3rem] border border-white/5">
-                      <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2">Authenticated Identity</p>
-                      <p className="text-xl font-bold truncate">{user.email}</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <motion.button
-                        whileHover={{ scale: 1.02, x: 5 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => auth.signOut()}
-                        className="w-full py-8 bg-white text-stone-950 rounded-[3rem] font-black uppercase tracking-widest flex items-center justify-center gap-4 shadow-2xl"
-                      >
-                        <LogOut size={24} />
-                        Logout
-                      </motion.button>
-
-                      <button className="w-full py-6 text-stone-500 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors">
-                        Security Protocols & Logs
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
             </div>
           </div>
-
-          {/* Horizontal Assistance Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className={clsx(
-              "mt-12 p-10 rounded-[4rem] shadow-xl border border-[var(--border-main)]",
-              isGlassEnabled ? "glass-card" : "bg-[var(--bg-card)]"
-            )}
-          >
-            <h2 className="text-2xl font-black tracking-tighter uppercase mb-8 text-[var(--text-main)]">Assistance & Support</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { label: 'Help Center', icon: HelpCircle, desc: 'Common Q&A', onClick: () => setIsHelpModalOpen(true) },
-                { label: 'Support Terminal', icon: LifeBuoy, desc: 'Contact us', onClick: () => window.location.href = 'mailto:support@example.com' },
-                { label: 'Privacy Codex', icon: Shield, desc: 'Data policy', onClick: () => { } },
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={item.onClick}
-                  className="w-full flex items-center justify-between p-6 rounded-3xl bg-[var(--bg-app)] hover:bg-[var(--accent-main)] transition-all group border border-transparent hover:border-[var(--border-main)]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-[var(--bg-card)] flex items-center justify-center text-[var(--text-muted)] group-hover:bg-white group-hover:text-[var(--accent-main)] transition-all">
-                      <item.icon size={24} />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-[var(--text-main)] group-hover:text-white text-base">{item.label}</p>
-                      <p className="text-[10px] text-[var(--text-muted)] group-hover:text-white/70 font-medium uppercase tracking-widest">{item.desc}</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-[var(--text-muted)] group-hover:text-white transition-colors" />
-                </button>
-              ))}
-            </div>
-          </motion.div>
         </div>
 
         {/* Help Q&A Modal */}

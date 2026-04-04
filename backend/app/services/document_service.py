@@ -12,6 +12,7 @@ Flow for AI generation:
   4. document_repo.create_document(db, req) → persisted record
 """
 
+import uuid
 from app.repositories import document_repo
 from app.services.ai_service import generate_assignment
 from app.services.template_parser import extract_structure
@@ -104,3 +105,31 @@ def get_section_outline(sections: list) -> str:
     Generate a plain markdown heading outline from a section list.
     """
     return generate_section_outline(sections)
+
+
+# --------------------------------------------------
+# SHARED DOCUMENT OPERATIONS
+# --------------------------------------------------
+
+def generate_share_code(db, doc_id: int, user_id: str):
+    doc = document_repo.get_document(db, doc_id, user_id)
+    if not doc:
+        return None
+    
+    # If already has a code, return it
+    if doc.share_code:
+        return doc.share_code
+        
+    # Generate new code
+    new_code = str(uuid.uuid4())[:8].upper()
+    document_repo.update_document(db, doc, {"share_code": new_code})
+    return new_code
+
+def get_document_by_code(db, code: str):
+    return document_repo.get_document_by_share_code(db, code)
+
+def save_shared_document(db, user_id: str, doc_id: int):
+    return document_repo.add_shared_document(db, user_id, doc_id)
+
+def get_shared_documents(db, user_id: str):
+    return document_repo.get_shared_documents_by_user(db, user_id)

@@ -17,6 +17,7 @@ import { performTask, AcademicTone } from '../../../shared/services/ai';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
 
 
+import Aurora from '../../editor/components/Aurora';
 import GeneratingLoader from '../../../shared/components/GeneratingLoader';
 import { extractTemplateData, Section as ExtractedSection, TemplateData, formatAsStrictJSON } from '../../../shared/utils/templateExtractor';
 
@@ -477,25 +478,31 @@ const GeneratePage = () => {
         <Layout>
             <AnimatePresence>{loading && <GeneratingLoader topic={topic} />}</AnimatePresence>
 
-            <div className="min-h-screen bg-stone-50/50 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-amber-100/30 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-indigo-100/30 blur-[120px] rounded-full translate-y-1/4 -translate-x-1/4 pointer-events-none" />
+            <div className="min-h-screen bg-[var(--bg-app)] relative overflow-hidden">
+                {/* Immersive Background */}
+                <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+                    <Aurora
+                        colorStops={['#F5F5F0', '#E4E3E0', '#F5F5F0']}
+                        speed={0.2}
+                        amplitude={0.8}
+                    />
+                </div>
 
-                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto">
+                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto pt-24 md:pt-32">
                     {/* Header */}
                     <header className="mb-16 text-center space-y-4">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-stone-900 text-white text-[10px] font-bold uppercase tracking-widest"
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--text-main)] text-[var(--bg-card)] text-[10px] font-black uppercase tracking-[0.25em] shadow-lg shadow-black/10"
                         >
-                            <Zap size={12} className="text-amber-400" /> AI-Powered Generation
+                            <Zap size={12} className="text-amber-400 fill-amber-400" /> AI-Powered Synthesis
                         </motion.div>
                         <motion.h1
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="text-5xl md:text-6xl font-bold text-stone-900 tracking-tight"
+                            className="text-5xl md:text-6xl font-bold text-[var(--text-main)] tracking-tight"
                         >
                             Create your <span className="italic font-serif text-amber-600">masterpiece</span>.
                         </motion.h1>
@@ -513,8 +520,8 @@ const GeneratePage = () => {
                     <div className="grid lg:grid-cols-12 gap-12 items-start">
                         {/* Left: progress sidebar */}
                         <div className="lg:col-span-4 space-y-8">
-                            <div className="bg-white rounded-[2.5rem] p-8 border border-stone-100 shadow-xl shadow-stone-200/50">
-                                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">
+                            <div className="bg-[var(--bg-card)] rounded-[2.5rem] p-8 border border-[var(--border-main)] shadow-xl shadow-black/5">
+                                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-8">
                                     Generation Progress
                                 </h3>
                                 <div className="space-y-6">
@@ -522,12 +529,12 @@ const GeneratePage = () => {
                                         <div key={i} className="flex items-center gap-4">
                                             <div
                                                 className={clsx(
-                                                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500',
+                                                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm',
                                                     activeStep === i
-                                                        ? 'bg-stone-900 text-white scale-110 shadow-lg'
+                                                        ? 'bg-[var(--text-main)] text-[var(--bg-card)] scale-110 shadow-lg'
                                                         : activeStep > i
-                                                            ? 'bg-emerald-100 text-emerald-600'
-                                                            : 'bg-stone-50 text-stone-300'
+                                                            ? 'bg-emerald-500/20 text-emerald-500'
+                                                            : 'bg-[var(--bg-app)] text-[var(--text-muted)]/40'
                                                 )}
                                             >
                                                 {activeStep > i ? <Check size={20} /> : <s.icon size={20} />}
@@ -536,12 +543,12 @@ const GeneratePage = () => {
                                                 <p
                                                     className={clsx(
                                                         'text-sm font-bold transition-colors',
-                                                        activeStep === i ? 'text-stone-900' : 'text-stone-400'
+                                                        activeStep === i ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'
                                                     )}
                                                 >
                                                     {s.title}
                                                 </p>
-                                                <div className="h-1 bg-stone-50 rounded-full mt-2 overflow-hidden">
+                                                <div className="h-1.5 bg-[var(--bg-app)] rounded-full mt-2 overflow-hidden border border-[var(--border-main)]/30 shadow-inner">
                                                     <motion.div
                                                         animate={{
                                                             width:
@@ -551,7 +558,7 @@ const GeneratePage = () => {
                                                                         ? '100%'
                                                                         : '0%',
                                                         }}
-                                                        className="h-full bg-stone-900"
+                                                        className="h-full bg-[var(--text-main)] shadow-[0_0_8px_rgba(0,0,0,0.1)]"
                                                     />
                                                 </div>
                                             </div>
@@ -560,17 +567,25 @@ const GeneratePage = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-amber-50 rounded-[2.5rem] p-8 border border-amber-100/50">
+                            <div className="bg-amber-400/10 rounded-[2.5rem] p-8 border border-amber-400/20 shadow-lg shadow-amber-900/5">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-white">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-900/20">
                                         <Zap size={18} />
                                     </div>
-                                    <h4 className="font-bold text-amber-900">Enhanced Extraction</h4>
+                                    <h4 className="font-bold text-amber-500">Enhanced Extraction</h4>
                                 </div>
-                                <p className="text-sm text-amber-800/70 leading-relaxed">
-                                    Upload any template — PDF, DOCX, or TXT. Headings are detected by font size,
-                                    bold formatting, and structure. No timeouts, processes up to 30 pages instantly.
-                                </p>
+                                <div className="space-y-4">
+                                    <p className="text-sm text-[var(--text-main)] opacity-70 leading-relaxed font-medium">
+                                        Upload any template — PDF, DOCX, or TXT. Headings are detected by font size,
+                                        bold formatting, and academic structure.
+                                    </p>
+                                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-400/20 border border-amber-400/30">
+                                        <Sparkles size={12} className="text-amber-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">
+                                            Tip: Upload .DOCX for superior extraction
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Extracted data summary */}
@@ -578,47 +593,41 @@ const GeneratePage = () => {
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-emerald-50 rounded-[2.5rem] p-6 border border-emerald-100/50 space-y-3"
+                                    className="bg-emerald-500/5 rounded-[2.5rem] p-6 border border-emerald-500/20 space-y-3 shadow-lg shadow-emerald-900/5"
                                 >
-                                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-widest">
+                                    <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
                                         Extraction Summary
                                     </h4>
-                                    {extractedData.style.font_family && (
-                                        <div className="text-sm text-emerald-800/70">
-                                            <span className="font-bold">Font:</span> {extractedData.style.font_family}
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-2">
+                                        {extractedData.style.font_family && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Font Family</span>
+                                                <span className="text-[13px] font-bold text-emerald-500 truncate">{extractedData.style.font_family.split(',')[0]}</span>
+                                            </div>
+                                        )}
+                                        {extractedData.style.body_font_size && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Base Scale</span>
+                                                <span className="text-[13px] font-bold text-emerald-500">{Math.round(extractedData.style.body_font_size)}pt</span>
+                                            </div>
+                                        )}
+                                        {extractedData.style.heading_font_size && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Heading Scale</span>
+                                                <span className="text-[13px] font-bold text-emerald-500">{Math.round(extractedData.style.heading_font_size)}pt</span>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Research Units</span>
+                                            <span className="text-[13px] font-bold text-emerald-500">{flatSections.length} Sections</span>
                                         </div>
-                                    )}
-                                    {extractedData.style.body_font_size && (
-                                        <div className="text-sm text-emerald-800/70">
-                                            <span className="font-bold">Body:</span>{' '}
-                                            {Math.round(extractedData.style.body_font_size)}pt
-                                        </div>
-                                    )}
-                                    {extractedData.style.heading_font_size && (
-                                        <div className="text-sm text-emerald-800/70">
-                                            <span className="font-bold">Heading:</span>{' '}
-                                            {Math.round(extractedData.style.heading_font_size)}pt
-                                        </div>
-                                    )}
-                                    <div className="text-sm text-emerald-800/70">
-                                        <span className="font-bold">Sections:</span> {flatSections.length}
                                     </div>
 
-                                    <div className="flex flex-col gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={handleSaveAsTemplate}
-                                            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-stone-900 text-white text-xs font-bold rounded-xl hover:bg-stone-800 transition-all shadow-lg shadow-stone-900/10"
-                                        >
-                                            <Save size={14} /> Save Blueprint to DB
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleExportJSON}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-emerald-200 bg-white text-emerald-700 text-xs font-bold rounded-xl hover:bg-emerald-100 transition-all"
-                                        >
-                                            <Code size={14} /> Export Structure (JSON)
-                                        </button>
+                                    <div className="pt-4 border-t border-emerald-500/10">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Blueprint Synchronized</span>
+                                        </div>
                                     </div>
                                 </motion.div>
 
@@ -636,12 +645,12 @@ const GeneratePage = () => {
                                             initial={{ opacity: 0, x: 20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: -20 }}
-                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
                                         >
                                             <div className="space-y-5">
                                                 {/* Toolbar */}
                                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
+                                                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">
                                                         Structure & Template
                                                     </label>
                                                     <div className="flex flex-wrap gap-2">
@@ -649,7 +658,7 @@ const GeneratePage = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={handleReset}
-                                                                className="text-xs font-bold text-red-500 flex items-center gap-2 px-4 py-2 bg-red-50 rounded-full hover:bg-red-100 transition-all"
+                                                                className="text-xs font-bold text-red-500 flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all"
                                                             >
                                                                 <RefreshCw size={14} /> Reset
                                                             </button>
@@ -657,12 +666,12 @@ const GeneratePage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowTemplateLibrary(v => !v)}
-                                                            className="text-xs font-bold text-stone-900 flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-all"
+                                                            className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all"
                                                         >
                                                             <BookOpen size={14} />{' '}
                                                             {showTemplateLibrary ? 'Hide Library' : 'Browse Library'}
                                                         </button>
-                                                        <label className="text-xs font-bold text-stone-900 flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-all cursor-pointer">
+                                                        <label className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all cursor-pointer">
                                                             <Upload size={14} /> Upload Template
                                                             <input
                                                                 ref={fileRef}
@@ -680,23 +689,23 @@ const GeneratePage = () => {
                                                     <motion.div
                                                         initial={{ opacity: 0, height: 0 }}
                                                         animate={{ opacity: 1, height: 'auto' }}
-                                                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-stone-50 rounded-3xl border border-stone-100"
+                                                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)] backdrop-blur-sm shadow-inner"
                                                     >
                                                         {BUILT_IN_TEMPLATES.map(t => (
                                                             <button
                                                                 key={t.id}
                                                                 type="button"
                                                                 onClick={() => handleSelectTemplate(t)}
-                                                                className="flex items-start gap-4 p-4 bg-white border border-stone-100 rounded-2xl hover:border-stone-900 hover:shadow-md transition-all text-left group"
+                                                                className="flex items-start gap-4 p-4 bg-[var(--bg-card)]/50 border border-[var(--border-main)] rounded-2xl hover:border-[var(--text-main)] hover:shadow-lg transition-all text-left group backdrop-blur-sm"
                                                             >
-                                                                <div className="w-10 h-10 bg-stone-50 rounded-xl flex items-center justify-center text-stone-400 group-hover:bg-stone-900 group-hover:text-white transition-all shrink-0">
+                                                                <div className="w-10 h-10 bg-[var(--bg-app)]/80 rounded-xl flex items-center justify-center text-[var(--text-muted)] group-hover:bg-[var(--text-main)] group-hover:text-[var(--bg-card)] transition-all shrink-0 shadow-sm">
                                                                     <t.icon size={20} />
                                                                 </div>
                                                                 <div>
-                                                                    <h4 className="font-bold text-stone-900 text-sm">
+                                                                    <h4 className="font-bold text-[var(--text-main)] text-sm group-hover:text-[var(--text-main)] transition-colors">
                                                                         {t.name}
                                                                     </h4>
-                                                                    <p className="text-[10px] text-stone-500 mt-1 uppercase tracking-wider">
+                                                                    <p className="text-[10px] text-[var(--text-muted)] mt-1 uppercase tracking-wider font-black">
                                                                         {t.sections.length} Sections
                                                                     </p>
                                                                 </div>
@@ -707,23 +716,23 @@ const GeneratePage = () => {
 
                                                 {/* Parse progress */}
                                                 {parsingFile && (
-                                                    <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100 animate-pulse">
-                                                        <RefreshCw size={16} className="text-amber-600 animate-spin" />
-                                                        <p className="text-xs font-bold text-amber-900">{parseStatus}</p>
+                                                    <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 animate-pulse">
+                                                        <RefreshCw size={16} className="text-amber-500 animate-spin" />
+                                                        <p className="text-xs font-bold text-amber-500">{parseStatus}</p>
                                                     </div>
                                                 )}
 
                                                 {/* File name badge */}
                                                 {templateFile && !parsingFile && (
-                                                    <div className="flex items-center gap-2 px-4 py-2 bg-stone-50 rounded-xl w-fit">
-                                                        <FileText size={14} className="text-stone-400" />
-                                                        <span className="text-xs font-medium text-stone-600 truncate max-w-[240px]">
+                                                    <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-xl w-fit shadow-sm">
+                                                        <FileText size={14} className="text-[var(--text-muted)]" />
+                                                        <span className="text-xs font-medium text-[var(--text-main)] truncate max-w-[240px]">
                                                             {templateFile.name}
                                                         </span>
                                                         <button
                                                             type="button"
                                                             onClick={handleReset}
-                                                            className="text-stone-300 hover:text-red-500 transition-colors"
+                                                            className="text-[var(--text-muted)] hover:text-red-500 transition-colors"
                                                         >
                                                             <X size={14} />
                                                         </button>
@@ -748,9 +757,9 @@ const GeneratePage = () => {
                                                                 onClick={() => cycleLevel(section.id)}
                                                                 title="Click to change level (H1 → H2 → H3)"
                                                                 className={clsx(
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all shrink-0',
+                                                                    'w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all shrink-0 shadow-sm',
                                                                     LEVEL_BADGE[section.level] ??
-                                                                    'bg-stone-100 text-stone-400'
+                                                                    'bg-[var(--bg-app)] text-[var(--text-muted)]'
                                                                 )}
                                                             >
                                                                 H{section.level}
@@ -760,7 +769,7 @@ const GeneratePage = () => {
                                                                 type="text"
                                                                 value={section.title}
                                                                 onChange={e => editSection(section.id, e.target.value)}
-                                                                className="flex-1 bg-stone-50 border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                                className="flex-1 bg-[var(--bg-app)] border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-[var(--text-main)] text-[var(--text-main)] transition-all outline-none"
                                                             />
 
                                                             <button
@@ -779,21 +788,21 @@ const GeneratePage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => addSection(1)}
-                                                        className="flex-1 py-3 border-2 border-dashed border-stone-100 rounded-xl text-stone-400 text-xs font-bold hover:border-stone-300 hover:text-stone-600 transition-all flex items-center justify-center gap-2"
+                                                        className="flex-1 py-3 border-2 border-dashed border-[var(--border-main)] rounded-xl text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-all flex items-center justify-center gap-2 px-4"
                                                     >
                                                         <Plus size={14} /> Section (H1)
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => addSection(2)}
-                                                        className="flex-1 py-3 border-2 border-dashed border-stone-100 rounded-xl text-stone-400 text-xs font-bold hover:border-stone-300 hover:text-stone-600 transition-all flex items-center justify-center gap-2"
+                                                        className="flex-1 py-3 border-2 border-dashed border-[var(--border-main)] rounded-xl text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-all flex items-center justify-center gap-2 px-4"
                                                     >
                                                         <Plus size={14} /> Subsection (H2)
                                                     </button>
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-end">
+                                            <div className="flex justify-end pt-6 border-t border-[var(--border-main)]/50">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -801,7 +810,7 @@ const GeneratePage = () => {
                                                             ? setActiveStep(1)
                                                             : toast.error('Add at least one section first')
                                                     }
-                                                    className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+                                                    className="px-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-bold hover:scale-105 transition-all shadow-xl shadow-black/20 flex items-center gap-2"
                                                 >
                                                     Next Step <ArrowRight size={20} />
                                                 </button>
@@ -816,7 +825,7 @@ const GeneratePage = () => {
                                             initial={{ opacity: 0, x: 20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: -20 }}
-                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
                                         >
                                             <div className="space-y-6">
                                                 <div className="space-y-2">
@@ -829,7 +838,7 @@ const GeneratePage = () => {
                                                         value={topic}
                                                         onChange={e => setTopic(e.target.value)}
                                                         placeholder="e.g. The Impact of Quantum Computing on Modern Cryptography"
-                                                        className="w-full bg-stone-50 border-none rounded-2xl px-8 py-5 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                        className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-8 py-5 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
                                                     />
                                                 </div>
 
@@ -881,7 +890,7 @@ const GeneratePage = () => {
                                                         value={description}
                                                         onChange={e => setDescription(e.target.value)}
                                                         placeholder="Describe key points, required theories, or specific focus areas…"
-                                                        className="w-full bg-stone-50 border-none rounded-2xl px-8 py-5 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none resize-none"
+                                                        className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-8 py-5 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none resize-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
                                                     />
                                                 </div>
 
@@ -897,10 +906,10 @@ const GeneratePage = () => {
                                                                     type="button"
                                                                     onClick={() => setTone(t)}
                                                                     className={clsx(
-                                                                        'py-3 px-4 rounded-xl text-xs font-bold capitalize transition-all border',
+                                                                        'py-3 px-4 rounded-xl text-xs font-bold capitalize transition-all border shadow-sm',
                                                                         tone === t
-                                                                            ? 'bg-stone-900 text-white border-stone-900 shadow-lg'
-                                                                            : 'bg-white text-stone-500 border-stone-100 hover:border-stone-300'
+                                                                            ? 'bg-[var(--text-main)] text-[var(--bg-card)] border-[var(--text-main)] shadow-lg'
+                                                                            : 'bg-[var(--bg-app)] text-[var(--text-muted)] border-[var(--border-main)] hover:border-[var(--text-main)]'
                                                                     )}
                                                                 >
                                                                     {t}
@@ -915,7 +924,7 @@ const GeneratePage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveStep(0)}
-                                                    className="px-8 py-4 text-stone-400 font-bold hover:text-stone-900 transition-all flex items-center gap-2"
+                                                    className="px-8 py-4 text-[var(--text-muted)] font-black uppercase tracking-widest text-xs hover:text-[var(--text-main)] transition-all flex items-center gap-2"
                                                 >
                                                     <ArrowLeft size={20} /> Back
                                                 </button>
@@ -941,7 +950,7 @@ const GeneratePage = () => {
                                             initial={{ opacity: 0, x: 20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: -20 }}
-                                            className="bg-white rounded-[3rem] p-10 md:p-14 border border-stone-100 shadow-2xl shadow-stone-200/50 space-y-10"
+                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
                                         >
                                             <div className="space-y-8">
                                                 <div className="grid md:grid-cols-2 gap-6">
@@ -987,7 +996,7 @@ const GeneratePage = () => {
                                                                 onChange={e => (set as any)(e.target.value)}
                                                                 placeholder={ph}
                                                                 required={req}
-                                                                className="w-full bg-stone-50 border-none rounded-2xl px-6 py-4 text-lg font-medium focus:ring-2 focus:ring-stone-900 transition-all outline-none"
+                                                                className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-6 py-4 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
                                                             />
                                                         </div>
                                                     ))}
@@ -1043,21 +1052,21 @@ const GeneratePage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveStep(1)}
-                                                    className="px-8 py-4 text-stone-400 font-bold hover:text-stone-900 transition-all flex items-center gap-2"
+                                                    className="px-8 py-4 text-[var(--text-muted)] font-black uppercase tracking-widest text-xs hover:text-[var(--text-main)] transition-all flex items-center gap-2"
                                                 >
                                                     <ArrowLeft size={20} /> Back
                                                 </button>
-                                                <div className="flex gap-4">
+                                                <div className="flex flex-col sm:flex-row gap-4">
                                                     <button
                                                         type="button"
                                                         onClick={e => handleGenerate(e as any, true)}
-                                                        className="px-8 py-4 bg-white border-2 border-stone-900 text-stone-900 rounded-2xl font-bold hover:bg-stone-50 transition-all active:scale-95 flex items-center gap-2"
+                                                        className="px-8 py-4 bg-[var(--bg-card)] border-2 border-[var(--text-main)] text-[var(--text-main)] rounded-2xl font-bold hover:bg-[var(--bg-app)] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm"
                                                     >
                                                         Generate &amp; Download DOCX
                                                     </button>
                                                     <button
                                                         type="submit"
-                                                        className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
+                                                        className="px-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-bold hover:scale-105 transition-all shadow-xl shadow-black/20 flex items-center justify-center gap-2"
                                                     >
                                                         Generate in Editor <ArrowRight size={20} />
                                                     </button>

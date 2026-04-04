@@ -37,6 +37,7 @@ def _groq_sync(prompt: str) -> str:
     if not groq_key:
         raise HTTPException(status_code=500, detail="Groq API key missing")
 
+    # High-performance standard Groq models
     MODELS = [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
@@ -44,6 +45,10 @@ def _groq_sync(prompt: str) -> str:
         "groq/compound",
         "groq/compound-mini",
         "qwen/qwen3-32b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
     ]
 
     for model_name in MODELS:
@@ -77,7 +82,7 @@ def _groq_sync(prompt: str) -> str:
             logger.error("🔥 Groq error on %s: %s", model_name, str(e))
             continue
 
-    raise HTTPException(status_code=503, detail="All Groq models failed. AI service exhausted.")
+    raise HTTPException(status_code=503, detail="All AI providers (Gemini/Groq) are currently exhausted.")
 
 
 # --------------------------------------------------
@@ -110,7 +115,7 @@ def _extract_text_from_response(response) -> str:
 # --------------------------------------------------
 def _gemini_sync(prompt: str) -> str:
     """Synchronous Gemini call — runs inside asyncio.to_thread."""
-    MAX_RETRIES = 2
+    MAX_RETRIES = 1
 
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -133,21 +138,26 @@ def _gemini_sync(prompt: str) -> str:
             raise HTTPException(status_code=500, detail="AI returned no usable content")
 
         except Exception as e:
-            error_str = str(e)
+            error_str = str(e).lower()
 
-            if "429" in error_str or "quota" in error_str.lower():
-                logger.warning("⚠️ Gemini quota exceeded → switching to Groq")
+            # For safety/block reason, we raise as-is
+            if "block" in error_str or "safety" in error_str:
+                logger.error("🔥 AI Blocked: %s", error_str)
+                raise HTTPException(status_code=400, detail=f"AI Content blocked: {error_str}")
+
+            # For EVERY other error (expire, quota, 400, 429), try Groq Failover
+            logger.warning("⚠️ Gemini failure (%s) → Initializing Groq Failover", error_str)
+            try:
                 return _groq_sync(prompt)
-
-            if attempt < MAX_RETRIES:
-                time.sleep(1)
-                continue
-
-            logger.error("🔥 AI generation failed after retries: %s", error_str)
-            raise HTTPException(
-                status_code=503,
-                detail=f"AI service busy: {error_str}. Please try again in a few seconds."
-            )
+            except HTTPException:
+                if attempt < MAX_RETRIES:
+                    continue
+                raise
+            except Exception as fe:
+                if attempt < MAX_RETRIES:
+                    continue
+                logger.error("🔥 AI Failover Failed: %s", str(fe))
+                raise HTTPException(status_code=503, detail="AI providers exhausted.")
 
 
 # --------------------------------------------------

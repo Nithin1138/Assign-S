@@ -22,7 +22,8 @@ import { AppLayout as Layout } from '../../../app/layout/AppLayout';
 import Aurora from '../../editor/components/Aurora';
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isGlassEnabled = profile?.preferences?.glassmorphism ?? false;
   const [recentDocs, setRecentDocs] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +52,17 @@ const DashboardPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto py-10 px-6 lg:px-10 space-y-10">
+      <div className="relative min-h-screen overflow-hidden bg-[var(--bg-app)]">
+        {/* Immersive Background */}
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+          <Aurora
+            colorStops={['#F5F5F0', '#E4E3E0', '#F5F5F0']}
+            speed={0.2}
+            amplitude={0.8}
+          />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto py-7 px-3 lg:px-7 space-y-10">
         {/* Header & Search */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
@@ -136,7 +147,10 @@ const DashboardPage = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * idx }}
-                  className="p-8 bg-[var(--bg-card)] rounded-[2rem] border border-[var(--border-main)] shadow-sm hover:shadow-xl hover:border-[var(--accent-main)]/20 transition-all group"
+                  className={clsx(
+                    "p-8 rounded-[2rem] border border-[var(--border-main)] transition-all group",
+                    isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] shadow-sm hover:shadow-xl hover:border-[var(--accent-main)]/20"
+                  )}
                 >
                   <div className="space-y-4">
                     <div className={clsx("w-14 h-14 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform", stat.bg, stat.color)}>
@@ -184,7 +198,10 @@ const DashboardPage = () => {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.05 * idx }}
                       onClick={() => navigate(`/editor/${doc.id}`)}
-                      className="group cursor-pointer p-8 bg-[var(--bg-card)] rounded-[2.5rem] border border-[var(--border-main)] shadow-sm hover:shadow-2xl hover:border-[var(--accent-main)]/20 transition-all relative overflow-hidden flex flex-col h-64"
+                      className={clsx(
+                        "group cursor-pointer p-8 rounded-[2.5rem] border border-[var(--border-main)] transition-all relative overflow-hidden flex flex-col h-64",
+                        isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] shadow-sm hover:shadow-2xl hover:border-[var(--accent-main)]/20"
+                      )}
                     >
                       <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                         <div className="w-12 h-12 bg-[var(--accent-main)] text-[var(--bg-card)] rounded-full flex items-center justify-center shadow-xl">
@@ -275,7 +292,10 @@ const DashboardPage = () => {
                   <button
                     key={i}
                     onClick={() => navigate('/templates')}
-                    className="w-full p-4 bg-[var(--bg-card)] rounded-2xl border border-[var(--border-main)] flex items-center justify-between hover:border-[var(--accent-main)]/20 transition-all group"
+                    className={clsx(
+                      "w-full p-4 rounded-2xl border border-[var(--border-main)] flex items-center justify-between transition-all group",
+                      isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] hover:border-[var(--accent-main)]/20"
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       <div className={clsx("w-10 h-10 rounded-xl bg-[var(--bg-app)] flex items-center justify-center", item.color)}>
@@ -291,6 +311,7 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+    </div>
     </Layout>
   );
 };

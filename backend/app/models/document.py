@@ -15,6 +15,7 @@ class Document(Base):
     sections = Column(JSON)
     task_type = Column(Text)
     tone = Column(Text)
+    share_code = Column(Text, unique=True, index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
