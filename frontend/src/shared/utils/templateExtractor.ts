@@ -79,7 +79,7 @@ function parseMetadata(text: string): TemplateData['metadata'] {
 
     // More robust name extraction: handle various separators and trailing labels
     const nameMatch = text.match(/(?:student\s*name|name|submitted\s*by|author)\s*[:\-]\s*([^\n\r]{2,60})/i) ||
-                     text.match(/\n\s*Name\s*\r?\n\s*([^\n\r]{2,60})/i); // Name on separate line
+        text.match(/\n\s*Name\s*\r?\n\s*([^\n\r]{2,60})/i); // Name on separate line
 
     return {
         student_name: nameMatch?.[1]?.trim() || null,
@@ -165,23 +165,57 @@ function extractTitle(text: string, sections: Array<{ title: string; level: numb
 function isSubsectionPattern(text: string): boolean {
     const t = text.toLowerCase();
     // Force H2 keywords for technical phases
-    if (/output|code|screenshot|result|observation|step|task|source|verification|evaluation|comparison|preparation|preprocessing/.test(t)) return true;
-    
+    if (/output|code|screenshot|step|task|source|comparison|preparation|preprocessing/.test(t)) return true;
+
     // Pattern for "Model Verification", "Model Evaluation", etc.
     if (/^model\s+(verification|evaluation|comparison|analysis|details|selection)/i.test(t)) return true;
 
     // Standard patterns: Step 1, 1., 1.1, Task A
-    return /^(step|task|experiment|part|module|ex|case)\s*[\dA-Z]/i.test(text) || 
-           /^(\d+[\.\)])\s+/.test(text) || 
-           /^(\d+\.)+\d+/.test(text);
+    return /^(step|task|experiment|part|module|ex|case)\s*[\dA-Z]/i.test(text) ||
+        /^(\d+[\.\)])\s+/.test(text) ||
+        /^(\d+\.)+\d+/.test(text);
 }
 
 function isMajorSectionPattern(text: string): boolean {
     const t = text.toLowerCase();
     // Protect subsections from being captured as major sections
     if (isSubsectionPattern(text)) return false;
-    // Force H1 keywords for clear major sections
-    return /introduction|abstract|theory|procedure|methodology|discussion|conclusion|references|aim|objective/.test(t);
+    // Force H1 keywords for clear major sections (Academic & Lab standards)
+    return /introduction|program|abstract|theory|background|preface|procedure|methodology|experiment|setup|configuration|implementation|observation|result|analysis|discussion|conclusion|summary|references|bibliography|appendix|aim|objective|index|contents|acknowledgments?|glossary|verification|evaluation/.test(t);
+}
+
+function isProtectedH1(text: string): boolean {
+    const t = text.toLowerCase();
+    return /introduction|program|abstract|theory|background|preface|procedure|methodology|experiment|setup|configuration|implementation|observation|result|analysis|discussion|conclusion|summary|references|bibliography|appendix|aim|objective|index|contents|acknowledgments?|glossary|verification|evaluation/.test(t);
+}
+
+function isTitleCase(text: string): boolean {
+    const words = text.split(/\s+/).filter(w => w.length > 2);
+    if (words.length === 0) return false;
+    // Check if most words start with capital
+    const titleCased = words.filter(w => /^[A-Z]/.test(w)).length;
+    return titleCased / words.length > 0.8;
+}
+
+function isProbablyCode(text: string): boolean {
+    const t = text.trim();
+    if (!t) return false;
+    // MATLAB, Python, LaTeX comments
+    if (t.startsWith('%') || t.startsWith('#') || t.startsWith('\\')) return true;
+    // Common assignment or logical operators in single lines
+    if (/[=;{}<>\[\]]/.test(t)) {
+        // High confidence if it has both assignment and semicolon
+        if (t.includes('=') && t.includes(';')) return true;
+        // High confidence if it has many code-like characters
+        const codeCharCount = (t.match(/[=;{}()\[\]<>%]/g) || []).length;
+        if (codeCharCount >= 2) return true;
+
+        // Very low vowel-to-consonant ratio often indicates code/formulas
+        const vowels = (t.match(/[aeiou]/gi) || []).length;
+        const letters = (t.match(/[a-z]/gi) || []).length;
+        if (letters > 10 && vowels / letters < 0.2) return true;
+    }
+    return false;
 }
 
 export async function extractDocx(file: File): Promise<TemplateData> {
@@ -225,28 +259,52 @@ export async function extractDocx(file: File): Promise<TemplateData> {
 
         if (!title || title.length < 3 || title.length > 200 || seen.has(key)) return;
 
+        // SKIP CODE (Universal Logic)
+        if (isProbablyCode(title)) return;
+
+        // Split complex headings (e.g., "Results: Observation")
+        if (title.includes(':') && !isProbablyCode(title)) {
+            const parts = title.split(':').map(p => p.trim()).filter(p => p.length >= 3);
+            if (parts.length > 1 && parts.some(p => isProtectedH1(p))) {
+                for (const part of parts) {
+                    const pLevel = isProtectedH1(part) ? 1 : 2;
+                    if (!seen.has(part.toLowerCase())) {
+                        seen.add(part.toLowerCase());
+                        flatSections.push({ title: part, level: pLevel });
+                    }
+                }
+                return;
+            }
+        }
+
         // Skip if it looks like metadata (e.g. "Name: ...")
         if (/^(name|reg|roll|id|date|course|subject|institution|faculty|dept)\s*[:\-]/i.test(title)) return;
 
         // Skip if it looks like a sentence (ends with period and has several words)
         if (title.endsWith('.') && title.split(' ').length > 4) return;
 
+        // SKIP CODE (Universal Logic)
+        if (isProbablyCode(title)) return;
+
         let level = 1;
         const tagName = el.tagName.toLowerCase();
+        const isProtected = isProtectedH1(title);
 
         if (tagName.startsWith('h')) {
             level = parseInt(tagName[1], 10);
             // Subsection patterns ALWAYS force H2, even for explicit h-tags
-            if (isSubsectionPattern(title)) level = 2;
-            else if (isMajorSectionPattern(title)) level = 1;
+            if (isSubsectionPattern(title) && !isProtected) level = 2;
+            else if (isMajorSectionPattern(title) || isProtected) level = 1;
         } else {
             const parent = el.parentElement;
             const parentText = parent?.textContent?.trim() || '';
             // If the parent has a lot more text than this bold/underline element, it's just highlighting in a para
             if (parentText.length > title.length + 15) return;
 
-            // Priority: Subsection Pattern (H2) > Major Pattern (H1) > Default
-            if (isSubsectionPattern(title)) {
+            // Priority: Protected H1 > Subsection Pattern (H2) > Major Pattern (H1) > Default
+            if (isProtected) {
+                level = 1;
+            } else if (isSubsectionPattern(title)) {
                 level = 2;
             } else if (isMajorSectionPattern(title)) {
                 level = 1;
@@ -259,7 +317,7 @@ export async function extractDocx(file: File): Promise<TemplateData> {
 
             // Underlined short text is almost always a major section
             if (tagName === 'u' && title.length < 40) level = 1;
-            
+
             if (/^[a-z]/.test(title)) return;
         }
 
@@ -267,7 +325,7 @@ export async function extractDocx(file: File): Promise<TemplateData> {
             // Check if there's significant text between this and the last heading
             const elIdxInDom = allNodes.indexOf(el);
             let hasInterveningBodyText = false;
-            
+
             if (lastElementIndex !== -1 && elIdxInDom - lastElementIndex > 2) {
                 // Check if there are non-empty text blocks between them
                 for (let i = lastElementIndex + 1; i < elIdxInDom; i++) {
@@ -282,10 +340,10 @@ export async function extractDocx(file: File): Promise<TemplateData> {
             // SMART DOWNGRADE: If this is H1 but follows another H1 immediately WITHOUT body text, treat as H2
             // ONLY if it's not at the very beginning (first 5 elements) where sub-titles are common
             // CRITICAL: NEVER downgrade major sections like 'Conclusion', 'Introduction', etc.
-            if (level === 1 && lastLevel === 1 && !hasInterveningBodyText && flatSections.length > 2 && !isMajorSectionPattern(title)) {
+            if (level === 1 && lastLevel === 1 && !hasInterveningBodyText && flatSections.length > 2 && !isMajorSectionPattern(title) && !isProtected) {
                 level = 2;
             }
-            
+
             seen.add(key);
             flatSections.push({ title, level });
             lastLevel = level;
@@ -344,7 +402,7 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
     progressCallback?.('Loading PDF document...');
 
     const arrayBuffer = await file.arrayBuffer();
-    
+
     // Safety check for worker loading
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.5.207/build/pdf.worker.min.mjs`;
@@ -360,10 +418,10 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
     let pdf: pdfjsLib.PDFDocumentProxy;
     try {
         // Initial handshake safety timeout
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('PDF initialization timed out (15s). Ensure you have an internet connection.')), 15000)
         );
-        
+
         pdf = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
     } catch (error) {
         console.warn('First worker failed, trying fallback...', error);
@@ -454,11 +512,13 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
 
         const sameHeight = Math.abs(currentLine.height - item.height) < 0.5;
         const sameLine = Math.abs(currentLine.y - item.y) < 3;
+        const horizontalGap = item.x - (currentLine.x + currentLine.width);
+        const isClose = horizontalGap < 20; // Only merge if gap is less than 20 pixels
         const canMerge = currentLine.str.length + item.str.length < 250;
 
-        if (sameHeight && sameLine && canMerge) {
+        if (sameHeight && sameLine && isClose && canMerge) {
             currentLine.str += (currentLine.str.endsWith('-') ? '' : ' ') + item.str;
-            currentLine.width += item.width;
+            currentLine.width += horizontalGap + item.width; // Include the gap in width
             currentLine.bold = currentLine.bold || item.bold;
         } else {
             lines.push(currentLine);
@@ -484,11 +544,30 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
 
         // Skip body sentences or lowercase starts
         if (title.endsWith('.') && wordCount > 5) continue;
-        if (/^[a-z]/.test(title)) continue; 
+        if (/^[a-z]/.test(title)) continue;
         if (wordCount > 10) continue; // Headings are rarely longer than 10 words
+
+        // SKIP CODE (Universal Logic)
+        if (isProbablyCode(title)) continue;
 
         // Skip metadata labels
         if (/^(name|reg|roll|id|date|course|subject|institution|faculty|dept|colleg|univers|campus|class|sem)\s*[:\-]/i.test(title)) continue;
+
+        // Split complex headings (e.g., "Results: Observation")
+        if (title.includes(':') && !isProbablyCode(title)) {
+            const parts = title.split(':').map(p => p.trim()).filter(p => p.length >= 3);
+            if (parts.length > 1 && parts.some(p => isProtectedH1(p))) {
+                for (const part of parts) {
+                    const pLevel = isProtectedH1(part) ? 1 : 2;
+                    if (!seen.has(part.toLowerCase())) {
+                        seen.add(part.toLowerCase());
+                        flatSections.push({ title: part, level: pLevel });
+                    }
+                }
+                lastHeadingIdx = i;
+                continue;
+            }
+        }
 
         fonts.add(line.fontName);
 
@@ -498,35 +577,37 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
         const slightlyLarge = line.height >= h3Threshold;
         const isBold = line.bold;
         const isUpperCase = title === title.toUpperCase() && /[A-Z]/.test(title);
+        const titleCase = isTitleCase(title);
         const hasNumberPrefix = /^(\d+(\.\d+)*)\s+/.test(title);
         const isStep = isSubsectionPattern(title);
         const isMajor = isMajorSectionPattern(title);
-        const isVeryShort = title.length < 50; 
+        const isVeryShort = title.length < 50;
         const isShort = title.length < 80;
 
         let level = 0;
+        const isProtected = isProtectedH1(title);
 
         // H2 Priority for steps/implementation (Always beats other detections)
-        if (isStep && wordCount < 12) {
+        if (isSubsectionPattern(title) && !isProtected && wordCount < 12) {
             level = 2;
         }
         // H1 Priority for major sections
-        else if (isMajor && wordCount < 8) {
+        else if ((isMajor || isProtected) && wordCount < 10) {
             level = 1;
         }
-        // H1: Very large OR large+bold OR uppercase+large
-        else if (largeSize || (mediumSize && isBold) || (isUpperCase && slightlyLarge)) {
-            if (wordCount < 10 && !title.endsWith('.')) level = 1;
+        // H1: Very large OR large+bold OR uppercase+large OR titlecase+large
+        else if (largeSize || (mediumSize && (isBold || isUpperCase || titleCase))) {
+            if (wordCount < 12 && !title.endsWith('.')) level = 1;
         }
-        
+
         // H2 fallback for medium formatting
         if (level === 0) {
-            // Must be bold, very short, and not a sentence
-            if ((isBold && isVeryShort && !title.endsWith('.')) || (isBold && hasNumberPrefix)) {
+            // Must be bold/titlecase, very short, and not a sentence
+            if (((isBold || titleCase) && isVeryShort && !title.endsWith('.')) || (isBold && hasNumberPrefix)) {
                 level = 2;
             }
             // H3: Slightly large + bold OR numbered
-            else if ((slightlyLarge && isBold && isVeryShort) || (hasNumberPrefix && isVeryShort)) {
+            else if ((slightlyLarge && (isBold || titleCase) && isVeryShort) || (hasNumberPrefix && isVeryShort)) {
                 level = 3;
             }
         }
@@ -549,7 +630,7 @@ export async function extractPdf(file: File, progressCallback?: (status: string)
                 const atStart = flatSections.length < 3;
                 if (!hasInterveningBodyText && lastHeadingIdx !== -1 && (i - lastHeadingIdx) <= (atStart ? 5 : 4)) {
                     // NEVER downgrade major sections
-                    if (!atStart && !isMajorSectionPattern(title)) {
+                    if (!atStart && !isMajorSectionPattern(title) && !isProtected) {
                         level = 2;
                     }
                 }

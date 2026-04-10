@@ -128,6 +128,7 @@ const GeneratePage = () => {
     const [templateText, setTemplateText] = useState('');
     const [templateFile, setTemplateFile] = useState<File | null>(null);
     const [extractedData, setExtractedData] = useState<TemplateData | null>(null);
+    const [extractionDetails, setExtractionDetails] = useState<{ raw?: any, ai?: any }>({});
 
     const [parsingFile, setParsingFile] = useState(false);
     const [parseStatus, setParseStatus] = useState('');
@@ -224,33 +225,52 @@ const GeneratePage = () => {
             // Set raw text for AI style matching
             setTemplateText(data.rawText);
 
-            // Convert and set sections
+            // 1. Initial Local Extraction Success (Immediate feedback for user)
             if (data.sections.length > 0) {
                 setSections(convertExtractedSections(data.sections));
+                setExtractionDetails(prev => ({ ...prev, raw: data }));
+            }
 
-                // Count sections
-                const countSections = (secs: ExtractedSection[]): number => {
-                    return secs.reduce((sum, s) =>
-                        sum + 1 + (s.subsections ? countSections(s.subsections) : 0), 0
-                    );
-                };
+            // 2. AI Refinement (Universal Logic)
+            setParseStatus('Refining blueprint with Universal AI...');
+            try {
+                const aiResult = await performTask({
+                    task_type: 'parse_structure',
+                    content: data.rawText.slice(0, 15000)
+                });
 
-                const totalSections = countSections(data.sections);
-                const h1Count = data.sections.length;
+                const aiData = JSON.parse(aiResult);
 
-                toast.success(
-                    `Extracted ${totalSections} section${totalSections !== 1 ? 's' : ''}` +
-                    (h1Count < totalSections ? ` (${h1Count} main)` : '')
-                );
-            } else {
-                // Fallback defaults
-                setSections([
-                    { id: uid(), title: 'Introduction', level: 1 },
-                    { id: uid(), title: 'Main Body', level: 1 },
-                    { id: uid(), title: 'Conclusion', level: 1 },
-                    { id: uid(), title: 'References', level: 1 },
-                ]);
-                toast('No headings detected — defaults applied.', { icon: '⚠️' });
+                if (aiData && aiData.sections && aiData.sections.length > 0) {
+                    setSections(convertExtractedSections(aiData.sections));
+                    setExtractionDetails(prev => ({ ...prev, ai: aiData }));
+                    if (aiData.title) setTopic(aiData.title);
+                    
+                    // Update metadata if AI found better values
+                    const m = aiData.metadata;
+                    if (m?.student_name) setStudentName(m.student_name);
+                    if (m?.registration_number) setRegNo(m.registration_number);
+                    if (m?.course) setCourse(m.course);
+                    if (m?.institution) setInstitution(m.institution);
+
+                    toast.success('Structure refined with Universal AI');
+                } else if (data.sections.length > 0) {
+                     toast.success('Local extraction successful');
+                } else {
+                    throw new Error('AI returned no sections');
+                }
+            } catch (aiErr) {
+                console.error('AI refinement failed:', aiErr);
+                if (data.sections.length === 0) {
+                    // Fallback to defaults only if everything failed
+                    setSections([
+                        { id: uid(), title: 'Introduction', level: 1 },
+                        { id: uid(), title: 'Main Body', level: 1 },
+                        { id: uid(), title: 'Conclusion', level: 1 },
+                        { id: uid(), title: 'References', level: 1 },
+                    ]);
+                    toast('Using basic structure fallback.', { icon: '⚠️' });
+                }
             }
 
             // Show extraction summary
@@ -346,6 +366,7 @@ const GeneratePage = () => {
                 metadataFields: extractedData?.metadata || {},
                 style: extractedData?.style || {},
                 topic: topic || '',
+                extractionDetails: extractionDetails
             });
 
             if (res && (res.id || res.success)) {

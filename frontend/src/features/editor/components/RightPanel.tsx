@@ -77,41 +77,47 @@ const RightPanel: React.FC<RightPanelProps> = ({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isMobile ? '100%' : (isOpen ? 360 : 0) }}
+      animate={{ width: isMobile ? '100%' : (isOpen ? 350 : 0) }}
       className={clsx(
-        "bg-[var(--bg-card)]/80 backdrop-blur-xl h-full flex flex-col relative z-20 shadow-2xl shadow-[var(--text-main)]/5",
-        isOpen && !isMobile ? "border-l border-[var(--border-main)]" : "border-l-0"
+        "bg-[var(--bg-card)]/80 backdrop-blur-xl h-full flex flex-col relative z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.02)]",
+        isOpen && !isMobile ? "" : "border-l-0"
       )}
     >
-      {/* Toggle Button - Minimalist & Elegant */}
+      {/* Toggle Button - Immersive & Functional */}
       {!isMobile && (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          onMouseEnter={() => !isOpen && setIsOpen(true)}
           className={clsx(
-            "absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-20 bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-main)] border-r-0 rounded-l-2xl flex items-center justify-center shadow-xl z-30 transition-all hover:bg-[var(--bg-card)] group",
-            !isOpen && "opacity-40 hover:opacity-100 -left-4"
+            "absolute top-1/2 -translate-y-1/2 w-8 h-24 bg-white/90 backdrop-blur-2xl border border-black/5 border-r-0 rounded-l-[2rem] flex items-center justify-center z-50 transition-all duration-500 hover:w-9 group",
+            isOpen ? "-left-8" : "-left-8 shadow-[-20px_0_40px_rgba(0,0,0,0.08)]"
           )}
           title={isOpen ? "Close Assistant" : "Open Assistant"}
         >
-          <div className="flex flex-col items-center gap-1.5">
-            <div className="w-0.5 h-6 bg-[var(--bg-app)] rounded-full group-hover:bg-[var(--border-main)] transition-colors" />
-            {isOpen ? (
-              <ChevronRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors" />
-            ) : (
-              <ChevronLeft size={14} className="text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors" />
-            )}
-            <div className="w-0.5 h-6 bg-[var(--bg-app)] rounded-full group-hover:bg-[var(--border-main)] transition-colors" />
+          <div className="flex flex-col items-center justify-center w-full h-full">
+            <motion.div
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="text-stone-400 group-hover:text-stone-900 transition-colors"
+            >
+              <ChevronRight size={22} strokeWidth={2.5} />
+            </motion.div>
           </div>
         </button>
       )}
 
-      <div className={clsx(
-        "flex-1 flex flex-col overflow-hidden",
-        isMobile ? "w-full" : "w-[360px]"
-      )}>
+      <motion.div 
+        animate={{ 
+          x: isMobile ? 0 : (isOpen ? 0 : 40), 
+          opacity: isMobile ? 1 : (isOpen ? 1 : 0) 
+        }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className={clsx(
+          "flex-1 flex flex-col overflow-hidden",
+          isMobile ? "w-full" : "w-[350px]"
+        )}
+      >
         {/* Tab Navigation - Refined & Aesthetic */}
-        <div className="flex border-b border-[var(--border-main)] bg-[var(--bg-card)]/40 sticky top-0 z-10 overflow-x-auto no-scrollbar">
+        <div className="flex bg-[var(--bg-card)]/40 sticky top-0 z-10 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -185,7 +191,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
     </motion.aside>
   );
 };

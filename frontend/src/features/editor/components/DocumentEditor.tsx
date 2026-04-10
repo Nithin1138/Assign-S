@@ -37,6 +37,7 @@ interface DocumentEditorProps {
   docId?: string;
   title?: string;
   onTitleChange?: (newTitle: string) => void;
+  toolbarMode?: 'full' | 'menu' | 'controls';
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -56,7 +57,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   userId,
   docId,
   title = "Untitled",
-  onTitleChange
+  onTitleChange,
+  toolbarMode = 'full'
 }) => {
   const [isAiInputOpen, setIsAiInputOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState('');
@@ -114,6 +116,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     <div className="flex flex-col h-full w-full">
       <EditorToolbar 
         editor={editor}
+        mode={toolbarMode}
         onSave={handleSave}
         onPageSetup={onPageSetup}
         onInsertDiagram={onInsertDiagram}

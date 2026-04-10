@@ -10,6 +10,7 @@ class TemplateRequest(BaseModel):
     sections: Optional[List[Any]] = None
     metadata_fields: Optional[Dict[str, Any]] = None
     style: Optional[Dict[str, Any]] = None
+    extraction_details: Optional[Dict[str, Any]] = None
 
 from datetime import datetime
 
@@ -23,6 +24,7 @@ class TemplateResponse(BaseModel):
     sections: Optional[List[Any]] = None
     metadata_fields: Optional[Dict[str, Any]] = None
     style: Optional[Dict[str, Any]] = None
+    extraction_details: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

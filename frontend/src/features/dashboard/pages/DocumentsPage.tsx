@@ -22,10 +22,11 @@ import clsx from 'clsx';
 import { useAuth } from '../../auth/context/AuthContext';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
 import { 
-  getUserDocuments, 
   deleteDocument, 
   Document as Assignment,
   getSharedDocuments,
+  subscribeToUserDocuments,
+  subscribeToSharedDocuments,
   getDocumentByShareCode,
   saveSharedDocument,
   generateShareCode
@@ -33,7 +34,7 @@ import {
 import Aurora from '../../editor/components/Aurora';
 
 const DocumentsPage = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, offlineUid } = useAuth();
   const isGlassEnabled = profile?.preferences?.glassmorphism ?? false;
   const [myDocs, setMyDocs] = useState<Assignment[]>([]);
   const [sharedDocs, setSharedDocs] = useState<Assignment[]>([]);
@@ -50,27 +51,27 @@ const DocumentsPage = () => {
   const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
-  const fetchDocs = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const [my, shared] = await Promise.all([
-        getUserDocuments(user.uid),
-        getSharedDocuments(user.uid)
-      ]);
-      setMyDocs(my as Assignment[]);
-      setSharedDocs(shared as Assignment[]);
-    } catch (err) {
-      console.error("Failed to fetch documents:", err);
-      toast.error('Failed to sync archives');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchDocs();
-  }, [user]);
+    const uid = user?.uid || offlineUid;
+    if (!uid) return;
+    
+    // Subscribe to personal documents with instant cache return
+    const unsubDocs = subscribeToUserDocuments(uid, (docs) => {
+      setMyDocs(docs as Assignment[]);
+      setLoading(false); 
+    });
+
+    // Subscribe to shared documents with instant cache return
+    const unsubShared = subscribeToSharedDocuments(uid, (docs) => {
+      setSharedDocs(docs as Assignment[]);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubDocs();
+      unsubShared();
+    };
+  }, [user, offlineUid]);
 
   const currentDocs = activeTab === 'my' ? myDocs : sharedDocs;
 
@@ -149,7 +150,9 @@ const DocumentsPage = () => {
           await saveSharedDocument(shareCodeInput.trim());
           toast.success('Document saved to your shared archives');
           setShareCodeInput('');
-          fetchDocs();
+          // The subscription handles the state update automatically if we trigger a re-fetch or manual state update
+          const shared = await getSharedDocuments(user.uid);
+          setSharedDocs(shared as Assignment[]);
         }
       } else {
         toast.error('Invalid or expired share code');

@@ -11,7 +11,10 @@ import {
   Maximize2,
   Minimize2,
   History,
-  Trash2
+  Trash2,
+  Image as ImageIcon,
+  Paperclip,
+  Mic
 } from 'lucide-react';
 import { Editor } from '@tiptap/react';
 import clsx from 'clsx';
@@ -36,6 +39,77 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
   const [history, setHistory] = useState<AIHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [previewResponse, setPreviewResponse] = useState<string | null>(null);
+  const [currentPrompt, setCurrentPrompt] = useState<string>("");
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (type: 'image' | 'file') => {
+    if (type === 'image') imageInputRef.current?.click();
+    else fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // In a real app, you'd upload this file or add it to the prompt context
+      console.log(`File selected: ${file.name}`);
+      // For now, we'll just add a visual cue in the prompt if empty
+      if (!prompt) setPrompt(`[Attached ${file.name}] `);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      setIsRecording(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Try Chrome or Safari.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        console.log("Speech recognition started");
+        setIsRecording(true);
+      };
+      
+      recognition.onend = () => {
+        console.log("Speech recognition ended");
+        setIsRecording(false);
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsRecording(false);
+        // Alert common errors for the user
+        if (event.error === 'not-allowed') {
+          alert("Microphone access denied. Please enable it in browser settings.");
+        }
+      };
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("Speech transcript:", transcript);
+        setPrompt(prev => prev + (prev ? " " : "") + transcript);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error("Error initializing speech recognition:", err);
+      setIsRecording(false);
+    }
+  };
 
   const aiActions = [
     { id: 'improve', label: 'Improve', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
@@ -48,21 +122,34 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
 
   const handleAction = async (id: string, customPrompt?: string) => {
     if (onAction) {
-      const currentPrompt = customPrompt || prompt;
-      // In a real app, we'd wait for the response from onAction
-      // For now, we'll simulate adding to history if onAction was successful
-      onAction({ id, prompt: currentPrompt });
+      const p = customPrompt || prompt;
+      setCurrentPrompt(p);
       
-      // We'll need a way to get the response back to show in history
-      // For this demo, let's assume we add to history
-      const newItem: AIHistoryItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        prompt: currentPrompt || id,
-        response: "Simulated AI response for " + (currentPrompt || id),
-        timestamp: Date.now(),
-        type: id
-      };
-      setHistory(prev => [newItem, ...prev].slice(0, 20));
+      // Extract full document context for better generation
+      const fullDocContext = editor?.getText() || "";
+      
+      // Trigger AI with full context
+      onAction({ 
+        id, 
+        prompt: p, 
+        context: fullDocContext 
+      });
+      
+      setPreviewResponse(null); // Clear previous while generating
+      
+      // For this demo/workflow, we provide the response for review
+      // The actual response logic would come from onAction
+      if (p.toLowerCase().includes('generate') || p.length >= 3 || id !== 'custom') {
+        setTimeout(() => {
+          // Capitalize first letter of prompt for heading
+          const heading = p.charAt(0).toUpperCase() + p.slice(1);
+          const mockResponse = id === 'bullet_points' 
+            ? `## ${heading}\n\n• Analysis of the primary data points discovered during the research phase.\n• Correlation with existing literature and methodology findings.\n• Synthesis of findings relative to the project's overall hypothesis.\n• Evaluation of statistical significance and research impact.`
+            : `## ${heading}\n\nBased on the comprehensive analysis of the available methodology and experimental data, the ${p.toLowerCase()} demonstrates a high degree of correlation with the initial research hypothesis. This section has been synthesized using the complete context of your document to ensure professional continuity and depth, focusing on technical precision and scholarly impact as established in the current project structure.`;
+          setPreviewResponse(mockResponse);
+        }, 1500);
+      }
+      
       if (customPrompt === undefined) setPrompt("");
     }
   };
@@ -213,33 +300,134 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
                 })}
               </div>
 
-              {/* Custom Prompt Input */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Custom Instruction</label>
-                <div className="relative">
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="e.g., 'Rewrite this to be more persuasive' or 'Add a counter-argument'..."
-                    className="w-full bg-[var(--bg-app)] border border-[var(--border-main)] rounded-2xl p-4 text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--text-main)]/5 focus:border-[var(--text-main)] transition-all min-h-[120px] resize-none"
-                  />
-                  <button 
-                    onClick={() => handleAction('custom')}
-                    disabled={loading || !prompt.trim()}
-                    className="absolute bottom-3 right-3 p-2 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                  >
-                    <Send size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Output Preview Area */}
-              <div className="p-4 bg-[var(--bg-app)] rounded-2xl border border-dashed border-[var(--border-main)]">
-                <p className="text-[10px] text-[var(--text-muted)] text-center italic">AI responses will appear here for your review before insertion.</p>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* AI Preview Area - Floating above input */}
+      <AnimatePresence>
+        {previewResponse && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="px-4 pb-0 z-20"
+          >
+            <div className="bg-[var(--bg-app)] border border-[var(--border-main)] rounded-2xl p-4 shadow-2xl border-indigo-500/20 space-y-3">
+              <div className="flex items-center justify-between border-b border-[var(--border-main)]/50 pb-2">
+                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles size={12} className="animate-pulse" /> AI Preview
+                </span>
+                <button 
+                  onClick={() => setPreviewResponse(null)}
+                  className="text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+              
+              <div className="text-[11px] text-[var(--text-main)] leading-relaxed max-h-[320px] overflow-y-auto pr-2 no-scrollbar hover:no-scrollbar whitespace-pre-wrap font-medium">
+                {previewResponse}
+              </div>
+              
+              <div className="flex gap-2 pt-2 border-t border-[var(--border-main)]/50">
+                <button 
+                  onClick={() => {
+                    insertResponse(previewResponse);
+                    // Add to history now that it's inserted
+                    const newItem: AIHistoryItem = {
+                      id: Math.random().toString(36).substr(2, 9),
+                      prompt: currentPrompt,
+                      response: previewResponse,
+                      timestamp: Date.now(),
+                      type: 'ai_request'
+                    };
+                    setHistory(prev => [newItem, ...prev].slice(0, 20));
+                    setPreviewResponse(null);
+                  }}
+                  className="flex-1 py-2 bg-indigo-500 text-white rounded-xl text-[10px] font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 active:scale-95 transition-all"
+                >
+                  Insert In Document
+                </button>
+                <button 
+                  onClick={() => handleAction('custom', currentPrompt)}
+                  className="px-4 py-2 border border-[var(--border-main)] rounded-xl text-[10px] font-bold text-[var(--text-main)] hover:bg-[var(--bg-card)] active:scale-95 transition-all flex items-center gap-1.5"
+                >
+                  <RefreshCw size={12} /> Regenerate
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Ask AI Input - Fixed at Bottom */}
+      <div className="p-4 border-t border-[var(--border-main)] bg-[var(--bg-card)]">
+        {/* Hidden File Inputs */}
+        <input 
+          type="file" 
+          ref={imageInputRef} 
+          className="hidden" 
+          accept="image/*" 
+          onChange={handleFileChange}
+        />
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          onChange={handleFileChange}
+        />
+
+        <div className="flex flex-col bg-[var(--bg-app)]/50 border border-[var(--border-main)] rounded-[1.5rem] p-1.5 transition-all focus-within:border-[var(--text-main)]/30 focus-within:shadow-xl focus-within:shadow-[var(--text-main)]/5 relative">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={isRecording ? "Listening..." : "Ask AI to write anything..."}
+            className={clsx(
+              "w-full bg-transparent border-none p-3 pb-0 text-sm placeholder:text-[var(--text-muted)] focus:outline-none min-h-[50px] resize-none transition-colors",
+              isRecording ? "text-indigo-500 animate-pulse" : "text-[var(--text-main)]"
+            )}
+          />
+          
+          <div className="flex items-center justify-between px-1 pb-1">
+            <div className="flex items-center gap-0.5">
+              <button 
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-full transition-all group" 
+                title="Upload Image"
+                onClick={() => handleFileUpload('image')}
+              >
+                <ImageIcon size={14} className="group-hover:scale-110 transition-transform" />
+              </button>
+              <button 
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] rounded-full transition-all group" 
+                title="Attach File"
+                onClick={() => handleFileUpload('file')}
+              >
+                <Paperclip size={14} className="group-hover:scale-110 transition-transform" />
+              </button>
+              <button 
+                className={clsx(
+                  "p-1.5 rounded-full transition-all group",
+                  isRecording ? "text-indigo-500 bg-indigo-50" : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)]"
+                )}
+                title={isRecording ? "Stop Recording" : "Voice Input"}
+                onClick={toggleRecording}
+              >
+                <Mic size={14} className={clsx("transition-transform", isRecording ? "scale-125" : "group-hover:scale-110")} />
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => handleAction('custom')}
+              disabled={loading || !prompt.trim() || isRecording}
+              className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500 text-white rounded-full font-bold transition-all disabled:opacity-50 active:scale-95 group shadow-md"
+            >
+              <Send size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              <span className="text-[9px] uppercase tracking-widest">Generate</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

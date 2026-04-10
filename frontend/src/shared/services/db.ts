@@ -235,7 +235,7 @@ export const getUserTemplates = async (userId: string): Promise<any[]> => {
   }
 };
 
-export const saveAsTemplate = async (userId: string, data: { name: string, sections: any[], metadataFields?: any, style?: any, topic?: string, description?: string, docId?: number }) => {
+export const saveAsTemplate = async (userId: string, data: { name: string, sections: any[], metadataFields?: any, style?: any, topic?: string, description?: string, docId?: number, extractionDetails?: any }) => {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE}/templates`, {
@@ -249,7 +249,8 @@ export const saveAsTemplate = async (userId: string, data: { name: string, secti
         style: data.style,
         topic: data.topic,
         description: data.description,
-        doc_id: data.docId
+        doc_id: data.docId,
+        extraction_details: data.extractionDetails
       })
     });
     const json = await response.json();
@@ -277,16 +278,77 @@ export const deleteTemplate = async (userId: string, templateId: string) => {
 };
 
 // --------------------------------------------------
-// Subscription shims (polling)
+// High-Speed Persistence & Caching Engine
 // --------------------------------------------------
-export const subscribeToUserDocuments = (userId: string, callback: (docs: Document[]) => void) => {
-  getUserDocuments(userId).then(callback);
-  return () => {};
+
+const CACHE_KEYS = { DOCS: '_am_docs_cache', TPLS: '_am_tpls_cache' };
+
+const _loadFromStorage = (key: string) => {
+  try {
+    const val = localStorage.getItem(key);
+    return val ? JSON.parse(val) : {};
+  } catch { return {}; }
 };
 
-export const subscribeToUserTemplates = (userId: string, callback: (docs: Document[]) => void) => {
-  getUserTemplates(userId).then(callback);
-  return () => {};
+const _saveToStorage = (key: string, val: any) => {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+};
+
+const _docCache: Record<string, Document[]> = _loadFromStorage(CACHE_KEYS.DOCS);
+const _tplCache: Record<string, any[]> = _loadFromStorage(CACHE_KEYS.TPLS);
+const _listeners: Set<() => void> = new Set();
+
+export const subscribeToUserDocuments = (userId: string, callback: (docs: Document[]) => void) => {
+  // 1. Instant sync from memory/storage
+  if (_docCache[userId]) {
+    callback(_docCache[userId]);
+  }
+
+  // 2. High-speed revalidation
+  getUserDocuments(userId).then(docs => {
+    _docCache[userId] = docs;
+    _saveToStorage(CACHE_KEYS.DOCS, _docCache);
+    callback(docs);
+  });
+
+  const listener = () => _docCache[userId] && callback(_docCache[userId]);
+  _listeners.add(listener);
+  return () => { _listeners.delete(listener); };
+};
+
+export const subscribeToUserTemplates = (userId: string, callback: (docs: any[]) => void) => {
+  if (_tplCache[userId]) {
+    callback(_tplCache[userId]);
+  }
+
+  getUserTemplates(userId).then(tpls => {
+    _tplCache[userId] = tpls;
+    _saveToStorage(CACHE_KEYS.TPLS, _tplCache);
+    callback(tpls);
+  });
+
+  const listener = () => _tplCache[userId] && callback(_tplCache[userId]);
+  _listeners.add(listener);
+  return () => { _listeners.delete(listener); };
+};
+
+export const subscribeToSharedDocuments = (userId: string, callback: (docs: Document[]) => void) => {
+  const SHARED_KEY = '_am_shared_cache';
+  const cache = _loadFromStorage(SHARED_KEY);
+  
+  if (cache[userId]) {
+    callback(cache[userId]);
+  }
+
+  getSharedDocuments(userId).then(docs => {
+    cache[userId] = docs;
+    _saveToStorage(SHARED_KEY, cache);
+    callback(docs as Document[]);
+  });
+
+  const listener = () => cache[userId] && callback(cache[userId]);
+  _listeners.add(listener);
+  return () => { _listeners.delete(listener); };
 };
 
 // --------------------------------------------------

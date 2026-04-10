@@ -43,6 +43,7 @@ def save_template(
             "description": template.description,
             "metadata_fields": template.metadata_fields,
             "style": template.style,
+            "extraction_details": template.extraction_details,
             "created_at": str(template.created_at),
             "updated_at": str(template.updated_at),
         }

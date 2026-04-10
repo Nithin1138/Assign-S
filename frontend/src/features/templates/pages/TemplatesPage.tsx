@@ -27,6 +27,7 @@ import {
   getUserTemplates,
   deleteTemplate,
   saveAsTemplate,
+  subscribeToUserTemplates,
   Document as Assignment
 } from '../../../shared/services/db';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
@@ -137,7 +138,7 @@ const TemplateCard = ({
 };
 
 const TemplatesPage = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, offlineUid } = useAuth();
   const isGlassEnabled = profile?.preferences?.glassmorphism ?? false;
   const navigate = useNavigate();
   const [userTemplates, setUserTemplates] = useState<Assignment[]>([]);
@@ -225,18 +226,31 @@ const TemplatesPage = () => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTemplates = useCallback(async () => {
-    if (!user) return;
-    setRefreshing(true);
-    const docs = await getUserTemplates(user.uid);
-    setUserTemplates(docs);
-    setRefreshing(false);
-    setLoading(false);
-  }, [user]);
-
   useEffect(() => {
-    fetchTemplates();
-  }, [fetchTemplates]);
+    const uid = user?.uid || offlineUid;
+    if (!uid) return;
+
+    setRefreshing(true);
+    const unsubscribe = subscribeToUserTemplates(uid, (tpls) => {
+      setUserTemplates(tpls as Assignment[]);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    return unsubscribe;
+  }, [user, offlineUid]);
+
+  const fetchTemplates = () => {
+    // This is now handled by subscription re-validation in background
+    // but we can manually trigger if needed through a refetch
+    if (user) {
+      setRefreshing(true);
+      getUserTemplates(user.uid).then(tpls => {
+        setUserTemplates(tpls);
+        setRefreshing(false);
+      });
+    }
+  };
 
 
   const handleUseTemplate = (template: any) => {

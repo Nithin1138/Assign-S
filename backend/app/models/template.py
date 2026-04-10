@@ -14,6 +14,7 @@ class Template(Base):
     sections = Column(JSON)  # Optimized hierarchical structure
     metadata_fields = Column(JSON) # Extracted metadata like student_name etc
     style = Column(JSON) # Margins, font sizes, font family, etc
+    extraction_details = Column(JSON, nullable=True) # Full audit trail of raw + AI extraction logs
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -19,6 +19,7 @@ import {
   Image as ImageIcon, 
   SearchCode, 
   BookmarkPlus,
+  ArrowLeft,
   Save,
   FileDown,
   FileUp,
@@ -73,7 +74,8 @@ import {
   Eraser,
   Edit3,
   Superscript,
-  Subscript
+  Subscript,
+  Sparkles
 } from 'lucide-react';
 import clsx from 'clsx';
 import SamRobot from './SamRobot';
@@ -90,6 +92,11 @@ interface EditorToolbarProps {
   onExportDOCX?: () => void;
   onSaveAsTemplate?: () => void;
   onFindReplace?: () => void;
+  mode?: 'full' | 'menu' | 'controls';
+  title?: string;
+  onTitleChange?: (newTitle: string) => void;
+  isSaving?: boolean;
+  onBack?: () => void;
 }
 
 const COLORS = [
@@ -212,7 +219,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(({
   onExportPDF,
   onExportDOCX,
   onSaveAsTemplate,
-  onFindReplace
+  onFindReplace,
+  mode = 'full',
+  title,
+  onTitleChange,
+  isSaving,
+  onBack
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -251,8 +263,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(({
       className={clsx(
         "p-1.5 rounded transition-all duration-200 flex items-center justify-center",
         isActive 
-          ? "bg-[var(--bg-app)] text-[var(--text-main)] shadow-sm" 
-          : "text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text-main)]",
+          ? "bg-stone-300 text-stone-900 shadow-inner" 
+          : "text-stone-700 hover:bg-stone-200 hover:text-stone-900 shadow-sm transition-all duration-100",
         disabled && "opacity-30 cursor-not-allowed",
         className
       )}
@@ -261,15 +273,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(({
     </button>
   );
 
-  const Divider = () => <div className="w-px h-4 bg-[var(--border-main)] mx-1 self-center" />;
+  const Divider = () => <div className="w-px h-4 bg-black/5 mx-1 self-center" />;
 
   const MenuDropdown = ({ label, items }: { label: string, items: any[] }) => (
     <div className="relative">
       <button
         onClick={() => setActiveMenu(activeMenu === label ? null : label)}
         className={clsx(
-          "px-3 py-1 rounded text-xs font-medium transition-colors",
-          activeMenu === label ? "bg-[var(--bg-app)] text-[var(--text-main)]" : "text-[var(--text-muted)] hover:bg-[var(--bg-app)] hover:text-[var(--text-main)]"
+          "px-3 py-1 rounded-md text-xs font-bold transition-all duration-150",
+          activeMenu === label ? "bg-stone-300 text-stone-950 shadow-sm" : "text-stone-700 hover:bg-stone-200 hover:text-stone-900"
         )}
       >
         {label}
@@ -280,7 +292,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(({
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute top-full left-0 mt-1 w-56 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-lg shadow-xl z-50 py-1 overflow-hidden"
+            className="absolute top-full left-0 mt-1 w-56 bg-white border border-stone-200 rounded-xl shadow-2xl py-2 z-[200] overflow-hidden"
           >
             {items.map((item, idx) => (
               item.type === 'divider' ? (
@@ -442,355 +454,436 @@ const EditorToolbar: React.FC<EditorToolbarProps> = React.memo(({
   };
 
   return (
-    <div className="flex flex-col border-b border-[var(--border-main)] bg-[var(--bg-card)] sticky top-0 z-30 shadow-sm" ref={menuRef}>
+    <div className={clsx(
+      "flex flex-col bg-white select-none",
+      mode !== 'menu' && "sticky top-0 z-30 border-b border-stone-200 shadow-sm"
+    )} ref={menuRef}>
       {/* ROW 1: MENU BAR */}
-      <div className="h-10 sm:h-8 flex items-center px-2 sm:px-4 gap-0.5 sm:gap-1 border-b border-[var(--border-main)]/50 overflow-x-auto no-scrollbar">
-        {Object.entries(menuData).map(([label, items]) => (
-          <MenuDropdown key={label} label={label} items={items} />
-        ))}
-        <div className="flex-1 min-w-[20px]" />
-        
-        <div className="flex items-center gap-1 mr-2 sm:mr-4 shrink-0">
-          <ToolbarButton onClick={onSaveAsTemplate || (() => {})} title="Save as Template" className="w-9 h-9 sm:w-7 sm:h-7">
-            <BookmarkPlus size={16} className="text-[var(--text-muted)]" />
-          </ToolbarButton>
+      {(mode === 'full' || mode === 'menu') && (
+        <div className="h-12 flex items-center px-4 gap-1 relative border-b border-stone-100/30">
+          {(onBack || title !== undefined) && (
+            <div className="flex items-center gap-3 mr-4 shrink-0">
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 transition-colors active:scale-95"
+                  title="Go back"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+              )}
+              {title !== undefined && (
+                <div className="flex items-center gap-3">
+                  <div className="relative group">
+                    <input
+                      value={title}
+                      onChange={(e) => onTitleChange?.(e.target.value)}
+                      className="text-sm font-bold text-stone-800 bg-transparent outline-none border-none hover:bg-stone-100/50 rounded-md px-2 py-1 transition-all focus:bg-stone-100 w-auto min-w-[100px] max-w-[300px]"
+                      placeholder="Untitled Document"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="w-px h-6 bg-stone-100/80 mx-1" />
+            </div>
+          )}
+          <div className="flex items-center">
+            {Object.entries(menuData).map(([label, items]) => (
+              <MenuDropdown key={label} label={label} items={items} />
+            ))}
+          </div>
+          <div className="flex-1 min-w-[20px]" />
+          
+          {/* ROW 1 ACTIONS (Moved from top header) */}
+          <div className="flex items-center gap-1 shrink-0 ml-auto mr-1">
+            <div className="flex items-center bg-[var(--bg-app)]/50 p-0.5 rounded-xl border border-[var(--border-main)]/30">
+              <button
+                onClick={onExportPDF}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold transition-all text-[10.5px] rounded-lg hover:bg-[var(--bg-card)]"
+              >
+                <Download size={13} /> <span>PDF</span>
+              </button>
+              <button
+                onClick={onExportDOCX}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold transition-all text-[10.5px] rounded-lg hover:bg-[var(--bg-card)]"
+              >
+                <Download size={13} /> <span>DOCX</span>
+              </button>
+            </div>
+
+            <button
+              onClick={onSaveAsTemplate}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl font-bold hover:opacity-90 transition-all text-[10.5px] shadow-sm ml-1"
+            >
+              <BookmarkPlus size={13} strokeWidth={3} /> Save Template
+            </button>
+
+            <button
+              onClick={onToggleRightPanel}
+              className={clsx(
+                "p-2 rounded-2xl transition-all ml-1",
+                isRightPanelOpen 
+                  ? "bg-[var(--accent-main)] text-[var(--bg-card)] shadow-[0_2_10px_rgba(var(--accent-main-rgb),0.2)]" 
+                  : "bg-[var(--text-main)] text-[var(--bg-card)] hover:opacity-90 transition-all shadow-sm"
+              )}
+              title={isRightPanelOpen ? "Close Assistant" : "Open Assistant"}
+            >
+              <Sparkles size={17} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ROW 2: MAIN CONTROLS */}
-      <div className="h-12 sm:h-10 flex items-center px-2 sm:px-4 gap-1 sm:gap-0.5 border-b border-[var(--border-main)]/50 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)" disabled={!editor.can().undo()} className="w-9 h-9 sm:w-7 sm:h-7">
-            <Undo size={18} />
-          </ToolbarButton>
-          <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)" disabled={!editor.can().redo()} className="w-9 h-9 sm:w-7 sm:h-7">
-            <Redo size={18} />
-          </ToolbarButton>
-        </div>
-        
-        <Divider />
+      {/* ROW 2 & 3: MAIN CONTROLS */}
+      {(mode === 'full' || mode === 'controls') && (
+        <div className="flex flex-col">
+          <div className="h-11 sm:h-10 flex items-center px-4 overflow-x-auto no-scrollbar relative">
+            {/* Left side: Sync Status (If needed) */}
+            <div className="absolute left-4 hidden md:flex items-center gap-2 px-2 py-1 rounded-lg">
+               <div className={clsx(
+                 "w-1.5 h-1.5 rounded-full",
+                 isSaving ? "bg-amber-400 animate-pulse" : "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.4)]"
+               )} />
+               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest uppercase">
+                 {isSaving ? "Syncing" : "Cloud Saved"}
+               </span>
+            </div>
 
-        <button
-          onClick={onSave}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0 ml-2"
-        >
-          <Save size={14} />
-          Save
-        </button>
+            <div className="flex-1 flex items-center justify-center gap-0.5">
+              <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)" disabled={!editor.can().undo()} className="w-9 h-9 sm:w-7 sm:h-7">
+                <Undo size={18} />
+              </ToolbarButton>
+              <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)" disabled={!editor.can().redo()} className="w-9 h-9 sm:w-7 sm:h-7">
+                <Redo size={18} />
+              </ToolbarButton>
+            </div>
+            
+            <Divider />
 
-        <Divider />
+            <button
+              onClick={onSave}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0 ml-2"
+            >
+              <Save size={14} />
+              Save
+            </button>
 
-        <select 
-          className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
-          onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
-          value={editor.getAttributes('textStyle').fontFamily || 'Inter'}
-        >
-          {fonts.map(font => <option key={font} value={font}>{font}</option>)}
-        </select>
+            <Divider />
 
-        <Divider />
+            <select 
+              className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
+              onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
+              value={editor.getAttributes('textStyle').fontFamily || 'Inter'}
+            >
+              {fonts.map(font => <option key={font} value={font}>{font}</option>)}
+            </select>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton onClick={() => changeFontSize(-1)} title="Decrease font size" className="w-9 h-9 sm:w-7 sm:h-7">
-            <Minus size={16} />
-          </ToolbarButton>
-          <select 
-            className="h-9 sm:h-7 w-14 sm:w-12 px-1 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
-            onChange={(e) => (editor.chain().focus() as any).setFontSize(`${e.target.value}px`).run()}
-            value={getCurrentFontSize()}
-          >
-            {fontSizes.map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
-          <ToolbarButton onClick={() => changeFontSize(1)} title="Increase font size" className="w-9 h-9 sm:w-7 sm:h-7">
-            <Plus size={16} />
-          </ToolbarButton>
-        </div>
+            <Divider />
 
-        <Divider />
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton onClick={() => changeFontSize(-1)} title="Decrease font size" className="w-9 h-9 sm:w-7 sm:h-7">
+                <Minus size={16} />
+              </ToolbarButton>
+              <select 
+                className="h-9 sm:h-7 w-14 sm:w-12 px-1 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
+                onChange={(e) => (editor.chain().focus() as any).setFontSize(`${e.target.value}px`).run()}
+                value={getCurrentFontSize()}
+              >
+                {fontSizes.map(size => <option key={size} value={size}>{size}</option>)}
+              </select>
+              <ToolbarButton onClick={() => changeFontSize(1)} title="Increase font size" className="w-9 h-9 sm:w-7 sm:h-7">
+                <Plus size={16} />
+              </ToolbarButton>
+            </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleBold().run()} 
-            isActive={editor.isActive('bold')}
-            title="Bold (Ctrl+B)"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Bold size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleItalic().run()} 
-            isActive={editor.isActive('italic')}
-            title="Italic (Ctrl+I)"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Italic size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleUnderline().run()} 
-            isActive={editor.isActive('underline')}
-            title="Underline (Ctrl+U)"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <UnderlineIcon size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleStrike().run()} 
-            isActive={editor.isActive('strike')}
-            title="Strikethrough"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Strikethrough size={18} />
-          </ToolbarButton>
-        </div>
+            <Divider />
 
-        <Divider />
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleBold().run()} 
+                isActive={editor.isActive('bold')}
+                title="Bold (Ctrl+B)"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Bold size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleItalic().run()} 
+                isActive={editor.isActive('italic')}
+                title="Italic (Ctrl+I)"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Italic size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleUnderline().run()} 
+                isActive={editor.isActive('underline')}
+                title="Underline (Ctrl+U)"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <UnderlineIcon size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleStrike().run()} 
+                isActive={editor.isActive('strike')}
+                title="Strikethrough"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Strikethrough size={18} />
+              </ToolbarButton>
+            </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleSubscript().run()} 
-            isActive={editor.isActive('subscript')}
-            title="Subscript"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Subscript size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleSuperscript().run()} 
-            isActive={editor.isActive('superscript')}
-            title="Superscript"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Superscript size={18} />
-          </ToolbarButton>
-        </div>
+            <Divider />
 
-        <Divider />
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleSubscript().run()} 
+                isActive={editor.isActive('subscript')}
+                title="Subscript"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Subscript size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleSuperscript().run()} 
+                isActive={editor.isActive('superscript')}
+                title="Superscript"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Superscript size={18} />
+              </ToolbarButton>
+            </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <ColorPicker 
-            label="Text Color" 
-            icon={Palette} 
-            activeColor={editor.getAttributes('textStyle').color}
-            onSelect={(color) => {
-              if (color === 'transparent') editor.chain().focus().unsetColor().run();
-              else editor.chain().focus().setColor(color).run();
-            }}
-          />
-          <ColorPicker 
-            label="Highlight Color" 
-            icon={Highlighter} 
-            activeColor={editor.getAttributes('highlight').color}
-            onSelect={(color) => {
-              if (color === 'transparent') editor.chain().focus().unsetHighlight().run();
-              else editor.chain().focus().toggleHighlight({ color }).run();
-            }}
-          />
-        </div>
+            <Divider />
 
-        <Divider />
+            <div className="flex items-center gap-1 shrink-0">
+              <ColorPicker 
+                label="Text Color" 
+                icon={Palette} 
+                activeColor={editor.getAttributes('textStyle').color}
+                onSelect={(color) => {
+                  if (color === 'transparent') editor.chain().focus().unsetColor().run();
+                  else editor.chain().focus().setColor(color).run();
+                }}
+              />
+              <ColorPicker 
+                label="Highlight Color" 
+                icon={Highlighter} 
+                activeColor={editor.getAttributes('highlight').color}
+                onSelect={(color) => {
+                  if (color === 'transparent') editor.chain().focus().unsetHighlight().run();
+                  else editor.chain().focus().toggleHighlight({ color }).run();
+                }}
+              />
+            </div>
 
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().unsetAllMarks().run()} 
-          title="Clear Formatting"
-          className="w-9 h-9 sm:w-7 sm:h-7 shrink-0"
-        >
-          <Baseline size={18} />
-        </ToolbarButton>
-      </div>
+            <Divider />
 
-      {/* ROW 3: PARAGRAPH + INSERT CONTROLS */}
-      <div className="h-12 sm:h-10 flex items-center px-2 sm:px-4 gap-1 sm:gap-0.5 border-b border-[var(--border-main)]/50 overflow-x-auto no-scrollbar">
-        <select 
-          className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors min-w-[120px] sm:min-w-[100px] shrink-0"
-          onChange={(e) => {
-            if (e.target.value === 'p') editor.chain().focus().setParagraph().run();
-            else editor.chain().focus().toggleHeading({ level: parseInt(e.target.value) as any }).run();
-          }}
-          value={editor.isActive('heading', { level: 1 }) ? '1' : editor.isActive('heading', { level: 2 }) ? '2' : editor.isActive('heading', { level: 3 }) ? '3' : 'p'}
-        >
-          <option value="p">Normal Text</option>
-          <option value="1">Heading 1</option>
-          <option value="2">Heading 2</option>
-          <option value="3">Heading 3</option>
-        </select>
-
-        <Divider />
-
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().setTextAlign('left').run()} 
-            isActive={editor.isActive({ textAlign: 'left' })}
-            title="Align Left"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <AlignLeft size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().setTextAlign('center').run()} 
-            isActive={editor.isActive({ textAlign: 'center' })}
-            title="Align Center"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <AlignCenter size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().setTextAlign('right').run()} 
-            isActive={editor.isActive({ textAlign: 'right' })}
-            title="Align Right"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <AlignRight size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().setTextAlign('justify').run()} 
-            isActive={editor.isActive({ textAlign: 'justify' })}
-            title="Align Justify"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <AlignJustify size={18} />
-          </ToolbarButton>
-        </div>
-
-        <Divider />
-
-        <select 
-          className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
-          onChange={(e) => (editor.chain().focus() as any).setLineHeight(e.target.value).run()}
-          value={editor.getAttributes('paragraph').lineHeight || '1.0'}
-          title="Line Spacing"
-        >
-          <option value="1.0">1.0</option>
-          <option value="1.15">1.15</option>
-          <option value="1.5">1.5</option>
-          <option value="2.0">2.0</option>
-        </select>
-
-        <Divider />
-
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleBulletList().run()} 
-            isActive={editor.isActive('bulletList')}
-            title="Bullet List"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <List size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleOrderedList().run()} 
-            isActive={editor.isActive('orderedList')}
-            title="Numbered List"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <ListOrdered size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleTaskList().run()} 
-            isActive={editor.isActive('taskList')}
-            title="Checklist"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <CheckSquare size={18} />
-          </ToolbarButton>
+            <ToolbarButton 
+              onClick={() => editor.chain().focus().unsetAllMarks().run()} 
+              title="Clear Formatting"
+              className="w-9 h-9 sm:w-7 sm:h-7 shrink-0"
+            >
+              <Baseline size={18} />
+            </ToolbarButton>
+          </div>
         </div>
 
-        <Divider />
+          <div className="h-11 sm:h-10 flex items-center justify-center px-4 gap-0.5 overflow-x-auto no-scrollbar">
+            <select 
+              className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors min-w-[120px] sm:min-w-[100px] shrink-0"
+              onChange={(e) => {
+                if (e.target.value === 'p') editor.chain().focus().setParagraph().run();
+                else editor.chain().focus().toggleHeading({ level: parseInt(e.target.value) as any }).run();
+              }}
+              value={editor.isActive('heading', { level: 1 }) ? '1' : editor.isActive('heading', { level: 2 }) ? '2' : editor.isActive('heading', { level: 3 }) ? '3' : 'p'}
+            >
+              <option value="p">Normal Text</option>
+              <option value="1">Heading 1</option>
+              <option value="2">Heading 2</option>
+              <option value="3">Heading 3</option>
+            </select>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => (editor.chain().focus() as any).indent().run()} 
-            title="Increase Indent"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Indent size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => (editor.chain().focus() as any).outdent().run()} 
-            title="Decrease Indent"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Outdent size={18} />
-          </ToolbarButton>
+            <Divider />
+
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().setTextAlign('left').run()} 
+                isActive={editor.isActive({ textAlign: 'left' })}
+                title="Align Left"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <AlignLeft size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().setTextAlign('center').run()} 
+                isActive={editor.isActive({ textAlign: 'center' })}
+                title="Align Center"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <AlignCenter size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().setTextAlign('right').run()} 
+                isActive={editor.isActive({ textAlign: 'right' })}
+                title="Align Right"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <AlignRight size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().setTextAlign('justify').run()} 
+                isActive={editor.isActive({ textAlign: 'justify' })}
+                title="Align Justify"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <AlignJustify size={18} />
+              </ToolbarButton>
+            </div>
+
+            <Divider />
+
+            <select 
+              className="h-9 sm:h-7 px-2 text-xs border border-[var(--border-main)] rounded bg-[var(--bg-app)] text-[var(--text-main)] outline-none hover:border-[var(--text-muted)] transition-colors shrink-0"
+              onChange={(e) => (editor.chain().focus() as any).setLineHeight(e.target.value).run()}
+              value={editor.getAttributes('paragraph').lineHeight || '1.0'}
+              title="Line Spacing"
+            >
+              <option value="1.0">1.0</option>
+              <option value="1.15">1.15</option>
+              <option value="1.5">1.5</option>
+              <option value="2.0">2.0</option>
+            </select>
+
+            <Divider />
+
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleBulletList().run()} 
+                isActive={editor.isActive('bulletList')}
+                title="Bullet List"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <List size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleOrderedList().run()} 
+                isActive={editor.isActive('orderedList')}
+                title="Numbered List"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <ListOrdered size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleTaskList().run()} 
+                isActive={editor.isActive('taskList')}
+                title="Checklist"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <CheckSquare size={18} />
+              </ToolbarButton>
+            </div>
+
+            <Divider />
+
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => (editor.chain().focus() as any).indent().run()} 
+                title="Increase Indent"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Indent size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => (editor.chain().focus() as any).outdent().run()} 
+                title="Decrease Indent"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Outdent size={18} />
+              </ToolbarButton>
+            </div>
+
+            <Divider />
+
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleBlockquote().run()} 
+                isActive={editor.isActive('blockquote')}
+                title="Quote"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Quote size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()} 
+                isActive={editor.isActive('codeBlock')}
+                title="Code Block"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <FileCode size={18} />
+              </ToolbarButton>
+            </div>
+
+            <Divider />
+
+            <div className="flex items-center gap-1 shrink-0">
+              <ToolbarButton 
+                onClick={() => {
+                  const url = window.prompt('Enter URL');
+                  if (url) editor.chain().focus().setLink({ href: url }).run();
+                }} 
+                isActive={editor.isActive('link')}
+                title="Insert Link"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <LinkIcon size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => {
+                  const url = window.prompt('Enter image URL');
+                  if (url) editor.chain().focus().setImage({ src: url }).run();
+                }} 
+                title="Insert Image"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <ImageIcon size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} 
+                title="Insert Table"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <TableIcon size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => editor.chain().focus().setHorizontalRule().run()} 
+                title="Horizontal Line"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <MinusSquare size={18} />
+              </ToolbarButton>
+              <ToolbarButton 
+                onClick={() => {}} 
+                title="Special Characters"
+                className="w-9 h-9 sm:w-7 sm:h-7"
+              >
+                <Sigma size={18} />
+              </ToolbarButton>
+            </div>
+
+            <Divider />
+
+            <ToolbarButton 
+              onClick={() => {}} 
+              title="Search"
+              className="w-9 h-9 sm:w-7 sm:h-7 shrink-0"
+            >
+              <Search size={18} />
+            </ToolbarButton>
+          </div>
         </div>
-
-        <Divider />
-
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleBlockquote().run()} 
-            isActive={editor.isActive('blockquote')}
-            title="Quote"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Quote size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()} 
-            isActive={editor.isActive('codeBlock')}
-            title="Code Block"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <FileCode size={18} />
-          </ToolbarButton>
-        </div>
-
-        <Divider />
-
-        <div className="flex items-center gap-1 shrink-0">
-          <ToolbarButton 
-            onClick={() => {
-              const url = window.prompt('Enter URL');
-              if (url) editor.chain().focus().setLink({ href: url }).run();
-            }} 
-            isActive={editor.isActive('link')}
-            title="Insert Link"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <LinkIcon size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => {
-              const url = window.prompt('Enter image URL');
-              if (url) editor.chain().focus().setImage({ src: url }).run();
-            }} 
-            title="Insert Image"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <ImageIcon size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} 
-            title="Insert Table"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <TableIcon size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().setHorizontalRule().run()} 
-            title="Horizontal Line"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <MinusSquare size={18} />
-          </ToolbarButton>
-          <ToolbarButton 
-            onClick={() => {}} 
-            title="Special Characters"
-            className="w-9 h-9 sm:w-7 sm:h-7"
-          >
-            <Sigma size={18} />
-          </ToolbarButton>
-        </div>
-
-        <Divider />
-
-        <ToolbarButton 
-          onClick={() => {}} 
-          title="Search"
-          className="w-9 h-9 sm:w-7 sm:h-7 shrink-0"
-        >
-          <Search size={18} />
-        </ToolbarButton>
-      </div>
+      )}
     </div>
   );
 });

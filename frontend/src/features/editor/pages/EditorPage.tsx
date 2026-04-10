@@ -2,17 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft,
   Download,
   BookmarkPlus,
-  Menu,
-  X,
   RefreshCw,
   Sparkles,
   Clock,
   Trash2,
   Eye,
-  Zap
+  Zap,
+  ArrowLeft,
+  X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEditor, Editor } from '@tiptap/react';
@@ -55,7 +54,7 @@ import {
 } from '../../../shared/services/db';
 import { performTask, TaskType, AcademicTone } from '../../../shared/services/ai';
 import DocumentEditor from '../components/DocumentEditor';
-import EditorSidebar from '../components/EditorSidebar';
+import EditorToolbar from '../components/EditorToolbar';
 import EditorStatusBar from '../components/EditorStatusBar';
 import RightPanel, { TabType } from '../components/RightPanel';
 import Aurora from '../components/Aurora';
@@ -133,15 +132,12 @@ const EditorPage = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(!isMobile && !isTablet);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(!isMobile && !isTablet);
 
   useEffect(() => {
     if (isMobile || isTablet) {
-      setIsLeftSidebarOpen(false);
       setIsRightPanelOpen(false);
     } else {
-      setIsLeftSidebarOpen(true);
       setIsRightPanelOpen(true);
     }
   }, [isMobile, isTablet]);
@@ -508,6 +504,23 @@ const EditorPage = () => {
     }
   }, [user, assignment, editor, sections, activeSectionId, id]);
 
+  const handleSave = useCallback(async () => {
+    if (!editor || !user || !id || !assignment) return;
+    setSaving(true);
+    try {
+      const currentContent = editor.getHTML();
+      await updateDocument(user.uid, id, {
+        title: assignment.title,
+        content: currentContent
+      });
+      toast.success('Saved successfully');
+    } catch (err) {
+      toast.error('Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }, [editor, user, id, assignment]);
+
   if (!assignment) return <div className="h-screen flex items-center justify-center bg-[var(--bg-app)]"><RefreshCw className="animate-spin text-[var(--text-muted)]" /></div>;
 
   return (
@@ -520,91 +533,31 @@ const EditorPage = () => {
         />
       </div>
 
-      <header className="h-16 border-b border-[var(--border-main)] flex items-center justify-between px-4 md:px-6 bg-[var(--bg-card)]/80 backdrop-blur-md z-40">
-        <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
-          <button
-            onClick={() => navigate('/documents')}
-            className="p-2 hover:bg-[var(--bg-app)] rounded-xl transition-all text-[var(--text-muted)] group shrink-0"
-          >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          </button>
-          <div className="flex flex-col min-w-0 flex-1">
-            <input
-              value={assignment.title}
-              onChange={async (e) => {
-                const newTitle = e.target.value;
-                setAssignment(prev => prev ? { ...prev, title: newTitle } : null);
-                updateDocument(user!.uid, id!, {
-                  title: newTitle,
-                }).catch(err => {
-                  console.error("Failed to update title:", err);
-                });
-              }}
-              className="font-bold text-[var(--text-main)] outline-none bg-transparent border-b border-transparent focus:border-[var(--border-main)] transition-all text-sm md:text-lg tracking-tight truncate"
-            />
-            <div className="flex items-center gap-2">
-              <div className={clsx(
-                "w-1.5 h-1.5 rounded-full transition-colors",
-                saving ? "bg-amber-400 animate-pulse" : "bg-emerald-400"
-              )} />
-              <span className="text-[9px] md:text-[10px] uppercase tracking-widest font-bold text-[var(--text-muted)] truncate">
-                {saving ? "Syncing..." : "Cloud Synced"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-3 ml-2">
-          <div className="hidden sm:flex items-center bg-[var(--bg-app)] p-1 rounded-xl">
-            <button
-              onClick={() => handleExport('pdf')}
-              className="flex items-center gap-2 px-3 md:px-4 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold transition-all text-xs rounded-lg hover:bg-[var(--bg-card)] hover:shadow-sm"
-            >
-              <Download size={14} /> <span className="hidden md:inline">PDF</span>
-            </button>
-            <button
-              onClick={() => handleExport('docx')}
-              className="flex items-center gap-2 px-3 md:px-4 py-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold transition-all text-xs rounded-lg hover:bg-[var(--bg-card)] hover:shadow-sm"
-            >
-              <Download size={14} /> <span className="hidden md:inline">DOCX</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleSaveAsTemplate}
-            className="flex items-center gap-2 px-3 md:px-5 py-2 bg-[var(--accent-main)] text-[var(--bg-card)] rounded-xl font-bold hover:opacity-90 transition-all text-xs shadow-lg shadow-[var(--accent-main)]/20"
-          >
-            <BookmarkPlus size={16} /> <span className="hidden md:inline">Save Template</span>
-          </button>
-
-          <button
-            onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-            className={clsx(
-              "lg:hidden p-2 rounded-xl transition-all",
-              isLeftSidebarOpen ? "bg-[var(--accent-main)] text-[var(--bg-card)]" : "bg-[var(--bg-app)] text-[var(--text-muted)]"
-            )}
-          >
-            <Menu size={20} />
-          </button>
-        </div>
-      </header>
+      
+      {/* 1st Line: Global Menu Bar (Fixed Full Width) */}
+      <div className="shrink-0 z-40 bg-white">
+        <EditorToolbar
+          editor={editor}
+          mode="menu"
+          title={assignment?.title}
+          onTitleChange={(newTitle) => {
+            setAssignment(prev => prev ? { ...prev, title: newTitle } : null);
+            updateDocument(user!.uid, id!, {
+              title: newTitle,
+            }).catch(console.error);
+          }}
+          isSaving={saving}
+          onBack={() => navigate('/documents')}
+          onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+          isRightPanelOpen={isRightPanelOpen}
+          onExportPDF={() => handleExport('pdf')}
+          onExportDOCX={() => handleExport('docx')}
+          onSaveAsTemplate={handleSaveAsTemplate}
+          onSave={handleSave}
+        />
+      </div>
 
       <div className="flex-1 flex overflow-hidden relative z-10">
-        <EditorSidebar
-          sections={sections}
-          activeSectionId={activeSectionId}
-          onSelectSection={(id) => {
-            handleSelectSection(id);
-            if (isMobile) setIsLeftSidebarOpen(false);
-          }}
-          onAddSection={handleAddSection}
-          onDeleteSection={handleDeleteSection}
-          onReorderSections={setSections}
-          isOpen={isLeftSidebarOpen}
-          setIsOpen={setIsLeftSidebarOpen}
-          isMobile={isMobile}
-          isTablet={isTablet}
-        />
 
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="absolute inset-0 bg-[var(--text-main)]/[0.02] pointer-events-none" />
@@ -627,6 +580,7 @@ const EditorPage = () => {
               docId={id}
               title={assignment?.title}
               onTitleChange={(newTitle) => setAssignment(prev => prev ? { ...prev, title: newTitle } : null)}
+              toolbarMode="controls"
             />
           </div>
 
@@ -638,15 +592,6 @@ const EditorPage = () => {
             onZoomChange={setZoom}
           />
 
-          <button
-            onClick={() => {
-              setRightPanelTab('ai');
-              setIsRightPanelOpen(true);
-            }}
-            className="md:hidden fixed bottom-14 right-6 w-14 h-14 bg-[var(--accent-main)] text-[var(--bg-card)] rounded-full shadow-2xl flex items-center justify-center z-50 active:scale-90 transition-transform"
-          >
-            <Sparkles size={24} />
-          </button>
 
           <AnimatePresence>
             {isPageSetupOpen && (
@@ -741,42 +686,41 @@ const EditorPage = () => {
           </AnimatePresence>
         </div>
 
-        <AnimatePresence mode="wait">
-          {isRightPanelOpen && (
-            <motion.div
-              initial={isMobile ? { y: '100%' } : { x: 350, opacity: 0 }}
-              animate={isMobile ? { y: 0 } : { x: 0, opacity: 1 }}
-              exit={isMobile ? { y: '100%' } : { x: 350, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className={clsx(
-                "border-stone-200 bg-white/80 backdrop-blur-xl z-30",
-                isMobile
-                  ? "fixed inset-x-0 bottom-0 h-[80vh] border-t rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)]"
-                  : "w-[350px] border-l h-full"
-              )}
-            >
-              {isMobile && (
-                <div className="flex justify-center p-4">
-                  <div className="w-12 h-1.5 bg-stone-200 rounded-full" onClick={() => setIsRightPanelOpen(false)} />
-                </div>
-              )}
-              <RightPanel
-                editor={editor}
-                isOpen={isRightPanelOpen}
-                setIsOpen={setIsRightPanelOpen}
-                activeTab={rightPanelTab}
-                onTabChange={setRightPanelTab}
-                aiLoading={aiLoading}
-                onAiAction={handleAiAction}
-                qualityReport={qualityReport}
-                onCheckQuality={() => handleAiAction('check_quality')}
-                notes={notes}
-                onUpdateNotes={setNotes}
-                isMobile={isMobile}
-              />
-            </motion.div>
+        <motion.div
+          initial={isMobile ? { y: '100%' } : { width: 0, opacity: 0 }}
+          animate={isMobile 
+            ? (isRightPanelOpen ? { y: 0, opacity: 1 } : { y: '100%', opacity: 0 }) 
+            : { width: isRightPanelOpen ? 350 : 0, opacity: 1 }
+          }
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className={clsx(
+            "bg-white/80 backdrop-blur-xl z-30 relative",
+            isMobile
+              ? "fixed inset-x-0 bottom-0 h-[80vh] border-t border-stone-200 rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.1)]"
+              : "h-full shrink-0 shadow-[-10px_0_30px_rgba(0,0,0,0.03)]"
           )}
-        </AnimatePresence>
+          style={{ overflow: 'visible' }}
+        >
+          {isMobile && isRightPanelOpen && (
+            <div className="flex justify-center p-4">
+              <div className="w-12 h-1.5 bg-stone-200 rounded-full" onClick={() => setIsRightPanelOpen(false)} />
+            </div>
+          )}
+          <RightPanel
+            editor={editor}
+            isOpen={isRightPanelOpen}
+            setIsOpen={setIsRightPanelOpen}
+            activeTab={rightPanelTab}
+            onTabChange={setRightPanelTab}
+            aiLoading={aiLoading}
+            onAiAction={handleAiAction}
+            qualityReport={qualityReport}
+            onCheckQuality={() => handleAiAction('check_quality')}
+            notes={notes}
+            onUpdateNotes={setNotes}
+            isMobile={isMobile}
+          />
+        </motion.div>
       </div>
     </div>
   );

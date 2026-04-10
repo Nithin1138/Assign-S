@@ -11,44 +11,35 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  offlineUid: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  refreshProfile: async () => { }
+  refreshProfile: async () => { },
+  offlineUid: localStorage.getItem('_am_last_uid')
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const fetchProfile = async (uid: string) => {
-    try {
-      const p = await getUserProfile(uid);
-      setProfile(p);
-    } catch (err) {
-      console.error("Profile fetch failed:", err);
-    }
-  };
-
-  const refreshProfile = async () => {
-    if (user) await fetchProfile(user.uid);
-  };
+  const [offlineUid] = useState(() => localStorage.getItem('_am_last_uid'));
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
+        localStorage.setItem('_am_last_uid', u.uid);
+        setUser(u);
         try {
           await syncUser(u);
-          await fetchProfile(u.uid);
-        } catch (err) {
-          console.error("User sync/profile fetch failed, but continuing login:", err);
-        }
-        setUser(u);
+          const p = await getUserProfile(u.uid);
+          setProfile(p);
+        } catch (err) { }
       } else {
+        localStorage.removeItem('_am_last_uid');
         setUser(null);
         setProfile(null);
       }
@@ -57,8 +48,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  const refreshProfile = async () => {
+    if (user) {
+      const p = await getUserProfile(user.uid);
+      setProfile(p);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, offlineUid }}>
       {children}
     </AuthContext.Provider>
   );
