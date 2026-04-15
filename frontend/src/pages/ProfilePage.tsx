@@ -6,17 +6,16 @@ import {
   Activity, LogOut, X, Flame, Trophy, Zap,
   Github, Linkedin, Globe, Plus, FileText,
   TrendingUp, Hash, BookOpen, Star, Target,
-  GraduationCap, MapPin, Check, Award
+  GraduationCap, MapPin, Check, Award, Edit3, Search
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { updateProfile, signOut } from 'firebase/auth';
 import { useAuth } from '../features/auth/context/AuthContext';
 import {
   getUserProfile, updateUserProfile, subscribeToUserDocuments,
   UserProfile, Document
 } from '../shared/services/db';
-import { auth } from '../shared/services/firebase';
+import { signOut } from '../shared/services/auth';
 import { AppLayout as Layout } from '../app/layout/AppLayout';
 import AvatarModal from '../shared/components/AvatarModal';
 import Aurora from '../features/editor/components/Aurora';
@@ -276,11 +275,14 @@ const RecentDocsList = ({ docs }: { docs: Document[] }) => {
 
 // ─── Main ProfilePage ─────────────────────────────────────────────────────────
 const ProfilePage = () => {
-  const { user, refreshProfile, offlineUid } = useAuth();
+  const { user, profile: userProfile, refreshProfile, offlineUid } = useAuth();
   const [activeTab, setActiveTab] = useState<'identity' | 'activity' | 'docs'>('identity');
   const [isSaving, setIsSaving] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isEditingID, setIsEditingID] = useState(false);
+  const [newCustomID, setNewCustomID] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedMonday, setSelectedMonday] = useState(() => {
     const d = new Date();
@@ -289,16 +291,35 @@ const ProfilePage = () => {
     return d;
   });
 
-  const [profile, setProfile] = useState<ExtendedProfile>({ displayName: user?.displayName || '', institution: '', fieldOfStudy: '' });
+  const [profile, setProfile] = useState<ExtendedProfile>({ displayName: '', institution: '', fieldOfStudy: '' });
   const [editedProfile, setEditedProfile] = useState<ExtendedProfile>({});
   const [allDocs, setAllDocs] = useState<Document[]>([]);
 
   useEffect(() => {
     const uid = user?.uid || offlineUid;
     if (!uid) return;
-    getUserProfile(uid).then(data => data && setProfile({ ...data, displayName: data.displayName || user?.displayName || '' }));
+    
+    // Use the profile from AuthContext if available, otherwise fetch
+    if (userProfile) {
+      setProfile({ ...userProfile, displayName: userProfile.displayName || '' });
+      setNewCustomID(userProfile.custom_id || '');
+    } else {
+      getUserProfile(uid).then(data => {
+        if (data) {
+          setProfile({ ...data, displayName: data.displayName || '' });
+          setNewCustomID(data.custom_id || '');
+        }
+      });
+    }
     return subscribeToUserDocuments(uid, setAllDocs);
-  }, [user, offlineUid]);
+  }, [user, userProfile, offlineUid]);
+
+  const filteredDocs = useMemo(() => {
+    if (!searchQuery) return allDocs;
+    return allDocs.filter(d => 
+      (d as any).title?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [allDocs, searchQuery]);
 
   const stats = useMemo(() => {
     const weekly = [0, 0, 0, 0, 0, 0, 0];
@@ -349,18 +370,23 @@ const ProfilePage = () => {
     setIsSaving(true);
     try {
       const updated = { ...profile, ...editedProfile };
-      await updateUserProfile(user.uid, updated as UserProfile);
-      if (editedProfile.displayName || editedProfile.photoURL) {
-        await updateProfile(user, { 
-          displayName: editedProfile.displayName || user.displayName,
-          photoURL: editedProfile.photoURL || user.photoURL
-        });
+      const result = await updateUserProfile(user.uid, updated as UserProfile);
+      
+      if (result && !result.error && !result.detail) {
+        // Sync with server's state (including timestamps)
+        setProfile({ ...result, displayName: result.displayName || '' });
+        setEditedProfile({});
+        await refreshProfile();
+        toast.success('Profile saved!');
+      } else {
+        const errorMsg = Array.isArray(result?.detail) 
+          ? result.detail.map((err: any) => err.msg).join(', ')
+          : result?.detail || result?.error || 'Failed to save';
+        toast.error(errorMsg);
       }
-      setProfile(updated);
-      setEditedProfile({});
-      await refreshProfile();
-      toast.success('Profile saved!');
-    } catch { toast.error('Failed to save'); }
+    } catch (err) { 
+      toast.error('Connection error'); 
+    }
     finally { setIsSaving(false); }
   };
 
@@ -383,15 +409,21 @@ const ProfilePage = () => {
               >
                 <div className="w-full h-full p-2">
                   <img
-                    src={merged.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid || 'guest'}`}
+                    src={merged.photoURL || profile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid || 'guest'}`}
                     alt="Profile"
                     className="w-full h-full object-cover rounded-[2.5rem]"
                   />
                 </div>
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="text-white" size={32} />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                  <Edit3 className="text-white" size={32} />
                 </div>
               </motion.div>
+              <button 
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute top-2 right-2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-2xl border border-[var(--border-main)] hover:scale-110 active:scale-95 transition-all z-20 group-hover:rotate-12"
+              >
+                <Edit3 size={16} className="text-[var(--text-main)]" />
+              </button>
               <div className="absolute -bottom-4 -right-4 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl border border-[var(--border-main)] scale-0 animate-in zoom-in duration-500 delay-300 fill-mode-forwards">
                 <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                   <Check size={16} strokeWidth={3} />
@@ -410,9 +442,77 @@ const ProfilePage = () => {
                 >
                   {merged.displayName || 'Scholar'}
                 </motion.h1>
-                <p className="text-[var(--text-muted)] font-black text-xs uppercase tracking-[0.4em] mt-5 flex items-center justify-center md:justify-start gap-3">
-                  <MapPin size={12} /> {merged.institution || 'Neutral Ground'} · {merged.fieldOfStudy || 'General Research'}
-                </p>
+                
+                <div className="mt-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                  <div className="flex items-center gap-2 group cursor-pointer" onClick={() => {
+                    const lastUpdate = profile.custom_id_updated_at ? new Date(profile.custom_id_updated_at) : null;
+                    const oneYearAgo = new Date();
+                    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                    
+                    if (lastUpdate && lastUpdate > oneYearAgo) {
+                      const daysLeft = Math.ceil((lastUpdate.getTime() + (365 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      toast.error(`User ID can only be changed once a year. Please wait ${daysLeft} more days.`);
+                      return;
+                    }
+                    setIsEditingID(true);
+                  }}>
+                    <span className="text-rose-500 font-black text-lg tracking-tight lowercase">
+                      @{merged.custom_id || 'unclaimed_identity'}
+                    </span>
+                    {!isEditingID && (
+                      <Edit3 size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </div>
+                  
+                  <div className="h-4 w-[1px] bg-[var(--border-main)] hidden md:block" />
+                  
+                  <p className="text-[var(--text-muted)] font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center md:justify-start gap-3">
+                    <MapPin size={12} /> {merged.institution || 'Neutral Ground'} · {merged.fieldOfStudy || 'General Research'}
+                  </p>
+                </div>
+
+                <AnimatePresence>
+                  {isEditingID && (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="mt-4 flex items-center gap-3"
+                    >
+                      <div className="flex items-center gap-1 border-b-2 border-rose-500 pb-1">
+                        <span className="text-rose-500 font-black text-lg">@</span>
+                        <input 
+                          autoFocus
+                          value={newCustomID}
+                          onChange={e => setNewCustomID(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                          className="bg-transparent border-none outline-none font-black text-lg text-[var(--text-main)] placeholder:text-[var(--text-muted)]/30 w-40"
+                          placeholder="user_id"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              setEditedProfile({ ...editedProfile, custom_id: newCustomID });
+                              setIsEditingID(false);
+                            }
+                            if (e.key === 'Escape') setIsEditingID(false);
+                          }}
+                        />
+                      </div>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => {
+                            setEditedProfile({ ...editedProfile, custom_id: newCustomID });
+                            setIsEditingID(false);
+                          }}
+                          className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-full transition-colors"
+                        >
+                          <Check size={18} strokeWidth={3} />
+                        </button>
+                        <button onClick={() => setIsEditingID(false)} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-full transition-colors">
+                          <X size={18} strokeWidth={3} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Stats Bar */}
@@ -452,7 +552,7 @@ const ProfilePage = () => {
                 )}
               >
                 {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                {isSaving ? 'Verifying...' : 'Synchronize'}
+                {isSaving ? 'Verifying...' : 'Save'}
                 {Object.keys(editedProfile).length > 0 && !isSaving && (
                   <motion.div
                     initial={{ x: '-100%' }}
@@ -464,49 +564,57 @@ const ProfilePage = () => {
               </button>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setIsAvatarModalOpen(true)}
-                  className="flex-1 py-3.5 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors flex items-center justify-center gap-2"
+                  onClick={() => signOut()}
+                  className="w-full h-11 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl flex items-center justify-center text-[var(--text-muted)] hover:text-rose-500 transition-colors gap-2 font-black text-[10px] uppercase tracking-widest"
                 >
-                  <Camera size={10} /> Identity
-                </button>
-                <button
-                  onClick={() => signOut(auth)}
-                  className="w-12 h-11 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl flex items-center justify-center text-[var(--text-muted)] hover:text-rose-500 transition-colors"
-                >
-                  <LogOut size={14} />
+                  <LogOut size={14} /> Terminate Session
                 </button>
               </div>
             </div>
           </motion.div>
 
           {/* Tab Navigation */}
-          <div className="flex items-center gap-2 mt-16 p-1.5 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] w-fit shadow-sm overflow-hidden relative">
-            {[
-              { id: 'identity', label: 'Identity', icon: UserIcon },
-              { id: 'activity', label: 'Activity', icon: Activity },
-              { id: 'docs', label: 'Archive', icon: FileText },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={clsx(
-                  "px-8 py-3.5 font-black uppercase tracking-widest text-[10px] rounded-[1.5rem] transition-all flex items-center gap-3 relative z-10 group",
-                  activeTab === tab.id
-                    ? "text-[var(--bg-card)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
-                )}
-              >
-                <tab.icon size={14} strokeWidth={3} />
-                {tab.label}
-                {activeTab === tab.id && (
-                  <motion.div
-                    layoutId="active-profile-tab"
-                    className="absolute inset-0 bg-[var(--text-main)] -z-10 rounded-[1.5rem] shadow-lg"
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mt-16">
+            <div className="flex items-center gap-2 p-1.5 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] w-fit shadow-sm overflow-hidden relative">
+              {[
+                { id: 'identity', label: 'Identity', icon: UserIcon },
+                { id: 'activity', label: 'Activity', icon: Activity },
+                { id: 'docs', label: 'Archive', icon: FileText },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={clsx(
+                    "px-8 py-3.5 font-black uppercase tracking-widest text-[10px] rounded-[1.5rem] transition-all flex items-center gap-3 relative z-10 group",
+                    activeTab === tab.id
+                      ? "text-[var(--bg-card)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                  )}
+                >
+                  <tab.icon size={14} strokeWidth={3} />
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="active-profile-tab"
+                      className="absolute inset-0 bg-[var(--text-main)] -z-10 rounded-[1.5rem] shadow-lg"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Profile Search Option */}
+            <div className="relative group w-full md:w-80">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-main)]" size={18} />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab === 'docs' ? 'documents' : activeTab === 'activity' ? 'activity' : 'profile'}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-14 pr-6 py-4 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[1.8rem] text-sm font-bold text-[var(--text-main)] focus:border-[var(--text-main)] transition-all outline-none shadow-sm"
+              />
+            </div>
           </div>
         </div>
 
@@ -531,7 +639,7 @@ const ProfilePage = () => {
                       <div className="p-3 bg-[var(--text-main)]/5 rounded-2xl">
                         <UserIcon className="text-[var(--text-main)]" size={24} />
                       </div>
-                      <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase leading-none">Profile Essentials</h2>
+                      <h2 className="text-3xl font-black text-[var(--text-main)] tracking-tighter uppercase leading-none">Details</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -768,7 +876,7 @@ const ProfilePage = () => {
                       </span>
                     </div>
 
-                    <RecentDocsList docs={allDocs} />
+                    <RecentDocsList docs={filteredDocs} />
                   </div>
                 </div>
 

@@ -1,97 +1,28 @@
-"""
-core/security.py — Firebase token verification via REST API
-
-How it works:
-  - Frontend gets a Firebase ID Token after login (Google Sign-In / email)
-  - Frontend sends: Authorization: Bearer <token>
-  - Backend sends the token to Firebase's Identity Toolkit REST API to verify
-  - No service account or gcloud CLI needed — just the web API key
-
-Why REST API (not Admin SDK):
-  - Admin SDK requires Google Application Default Credentials or a service account JSON
-  - For local dev without gcloud setup, the REST API approach works out of the box
-  - Same security guarantees — Firebase validates the token on their servers
-"""
-
 import logging
-
-import requests as http_requests
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import SessionLocal
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-# --------------------------------------------------
-# Bearer token extractor (auto_error=False so we
-# can give a custom 401 message)
-# --------------------------------------------------
 _bearer = HTTPBearer(auto_error=False)
 
-
-# --------------------------------------------------
-# Core verification — Firebase Identity Toolkit REST
-# --------------------------------------------------
-def _verify_firebase_token(token: str) -> dict:
-    """
-    Verifies a Firebase ID token via Google's Identity Toolkit API.
-
-    Returns a user dict with at minimum:
-      { uid, email, email_verified, display_name }
-
-    Raises ValueError on any failure.
-    """
-    api_key = settings.FIREBASE_API_KEY
-    if not api_key:
-        raise ValueError("FIREBASE_API_KEY is not configured in the backend .env")
-
+def get_db():
+    db = SessionLocal()
     try:
-        resp = http_requests.post(
-            f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={api_key}",
-            json={"idToken": token},
-            timeout=10,
-        )
-    except http_requests.exceptions.Timeout:
-        raise ValueError("Firebase verification timed out")
-    except http_requests.exceptions.RequestException as e:
-        raise ValueError(f"Network error during Firebase verification: {e}")
+        yield db
+    finally:
+        db.close()
 
-    if resp.status_code != 200:
-        body = resp.json()
-        err = body.get("error", {}).get("message", resp.text)
-        raise ValueError(f"Firebase rejected token: {err}")
-
-    data = resp.json()
-    users = data.get("users", [])
-    if not users:
-        raise ValueError("Firebase: no user found for this token")
-
-    u = users[0]
-    return {
-        "uid": u["localId"],
-        "email": u.get("email"),
-        "email_verified": u.get("emailVerified", False),
-        "display_name": u.get("displayName"),
-        "photo_url": u.get("photoUrl"),
-    }
-
-
-# --------------------------------------------------
-# FastAPI dependency — required auth
-# --------------------------------------------------
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: Session = Depends(get_db)
 ) -> dict:
-    """
-    Extracts and verifies the Firebase ID token from the Authorization header.
-    Raises HTTP 401 if missing, invalid, or expired.
-
-    Usage:
-        @router.get("/protected")
-        async def endpoint(user=Depends(get_current_user)):
-            return {"uid": user["uid"]}
-    """
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -100,34 +31,70 @@ async def get_current_user(
         )
 
     try:
-        user = _verify_firebase_token(credentials.credentials)
-        return user
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        uid: str = payload.get("sub")
+        if uid is None:
+            raise ValueError("JWT token does not contain a subject")
+            
+        from sqlalchemy import or_
+        user = db.query(User).filter(
+            User.uid == uid, 
+            or_(User.is_deleted == False, User.is_deleted == None)
+        ).first()
+        if not user:
+            raise ValueError("User not found or restricted")
+            
+        return {
+            "uid": user.uid,
+            "email": user.email,
+            "display_name": user.displayName,
+            "photo_url": user.photoURL,
+        }
+    except JWTError as e:
+        logger.warning(f"JWT verification failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except ValueError as e:
-        logger.warning("Token verification failed: %s", str(e))
+        logger.warning(f"User validation failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
     except Exception as e:
-        logger.error("Unexpected error during token verification: %s", str(e))
+        logger.error(f"Unexpected error during token verification: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication failed.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-
-# --------------------------------------------------
-# FastAPI dependency — optional auth
-# --------------------------------------------------
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: Session = Depends(get_db)
 ) -> dict | None:
-    """Returns the user dict if token is valid, None if not provided."""
     if not credentials:
         return None
     try:
-        return _verify_firebase_token(credentials.credentials)
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        uid: str = payload.get("sub")
+        if not uid: return None
+        from sqlalchemy import or_
+        user = db.query(User).filter(
+            User.uid == uid, 
+            or_(User.is_deleted == False, User.is_deleted == None)
+        ).first()
+        if not user: return None
+        return {
+            "uid": user.uid,
+            "email": user.email,
+            "display_name": user.displayName,
+            "photo_url": user.photoURL,
+        }
     except Exception:
         return None

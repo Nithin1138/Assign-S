@@ -14,6 +14,7 @@ class SaveRequest(BaseModel):
     sections: Optional[List[Section]] = None
     task_type: str = "generate"
     tone: str = "neutral"
+    status: Optional[str] = "draft" # draft, generated, finalized
 
 from datetime import datetime
 
@@ -27,7 +28,9 @@ class DocumentResponse(BaseModel):
     sections: Optional[list] = None
     task_type: Optional[str] = None
     tone: Optional[str] = None
+    status: Optional[str] = "draft"
     share_code: Optional[str] = None
+    permission: Optional[str] = "owner"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

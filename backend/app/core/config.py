@@ -22,7 +22,6 @@ class Settings:
     JWT_SECRET = os.getenv("JWT_SECRET")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("VITE_GEMINI_API_KEY")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-    FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY")
     ENV = ENV
 
 

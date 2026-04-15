@@ -13,7 +13,7 @@ Flow for AI generation:
 """
 
 import uuid
-from app.repositories import document_repo
+from app.repositories import document_repo, activity_repo
 from app.services.ai_service import generate_assignment
 from app.services.template_parser import extract_structure
 from app.services.document_generator import generate_document, generate_section_outline
@@ -24,7 +24,16 @@ from app.services.document_generator import generate_document, generate_section_
 # --------------------------------------------------
 
 def save_document(db, req):
-    return document_repo.create_document(db, req)
+    doc = document_repo.create_document(db, req)
+    activity_repo.log_activity(
+        db, 
+        req.user_id, 
+        "document_created", 
+        f"Created: {doc.title}", 
+        f"A new assignment architecture was established for '{doc.topic or 'General'}'.",
+        {"doc_id": doc.id}
+    )
+    return doc
 
 
 def get_documents(db, user_id):
@@ -36,14 +45,15 @@ def get_document(db, doc_id, user_id):
 
 
 def update_document(db, doc_id, req):
-    doc = document_repo.get_document(db, doc_id, req.user_id)
+    doc = document_repo.get_document_for_update(db, doc_id, req.user_id)
     if not doc:
         return None
     return document_repo.update_document(db, doc, req)
 
 
-def delete_document(db, doc_id):
-    doc = document_repo.get_document(db, doc_id, None)
+def delete_document(db, doc_id, user_id):
+    # Enforce ownership during deletion
+    doc = document_repo.get_document(db, doc_id, user_id)
     if not doc:
         return None
     document_repo.delete_document(db, doc)
@@ -133,3 +143,37 @@ def save_shared_document(db, user_id: str, doc_id: int):
 
 def get_shared_documents(db, user_id: str):
     return document_repo.get_shared_documents_by_user(db, user_id)
+
+def get_document_access_list(db, doc_id: int):
+    return document_repo.get_document_access_list(db, doc_id)
+
+def update_document_access(db, doc_id: int, target_identifier: str, permission: str, granter_uid: str = None):
+    from app.models.user import User
+    # Try looking up by uid, email, or custom_id
+    user = db.query(User).filter(
+        (User.uid == target_identifier) | 
+        (User.email == target_identifier) | 
+        (User.custom_id == target_identifier)
+    ).first()
+    
+    if not user:
+        return None
+        
+    res = document_repo.update_shared_permission(db, doc_id, user.uid, permission, granted_by_uid=granter_uid)
+    if res and granter_uid:
+        doc = document_repo.get_document_by_id(db, doc_id)
+        activity_repo.log_activity(
+            db,
+            granter_uid,
+            "shared_invite",
+            f"Invited Collaborator",
+            f"Dispatched a {permission} invitation to {user.displayName or user.email} for '{doc.title if doc else 'Document'}'.",
+            {"target_uid": user.uid, "doc_id": doc_id}
+        )
+    return res
+
+def get_pending_shares(db, user_id: str):
+    return document_repo.get_pending_shares_by_user(db, user_id)
+
+def respond_to_share_request(db, share_id: int, user_id: str, status: str):
+    return document_repo.respond_to_share_request(db, share_id, user_id, status)

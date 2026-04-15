@@ -1,13 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  onAuthStateChanged,
-  User as FirebaseUser
-} from 'firebase/auth';
-import { auth } from '../../../shared/services/firebase';
-import { getUserProfile, syncUser, UserProfile } from '../../../shared/services/db';
+import { jwtDecode } from 'jwt-decode';
+import { getUserProfile, UserProfile } from '../../../shared/services/db';
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: any | null; // We use a generic dict for the decoded user 
   profile: UserProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
@@ -23,33 +19,60 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [offlineUid] = useState(() => localStorage.getItem('_am_last_uid'));
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        localStorage.setItem('_am_last_uid', u.uid);
-        setUser(u);
+    const initializeAuth = async () => {
+      setLoading(true);
+      const token = localStorage.getItem('am_access_token');
+      if (token) {
         try {
-          await syncUser(u);
-          const p = await getUserProfile(u.uid);
-          setProfile(p);
-        } catch (err) { }
+          const decoded: any = jwtDecode(token);
+          // Assuming `sub` is the user's uid in the token payload
+          const uid = decoded.sub;
+          if (uid) {
+            setUser({ uid });
+            localStorage.setItem('_am_last_uid', uid);
+            // Fire profile fetch in background to prevent blocking auth resolution
+            getUserProfile(uid).then(p => {
+              if (p) setProfile(p);
+            });
+          } else {
+            throw new Error("Invalid token payload");
+          }
+        } catch (err) {
+          console.error("Auth initialization failed", err);
+          localStorage.removeItem('am_access_token');
+          setUser(null);
+          setProfile(null);
+        }
       } else {
-        localStorage.removeItem('_am_last_uid');
         setUser(null);
         setProfile(null);
       }
       setLoading(false);
-    });
-    return unsubscribe;
+    };
+
+    initializeAuth();
+
+    // Setup an interval to periodically check token or listen to changes
+    const handleStorageChange = () => {
+      initializeAuth();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth_changed', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth_changed', handleStorageChange);
+    };
   }, []);
 
   const refreshProfile = async () => {
-    if (user) {
+    if (user?.uid) {
       const p = await getUserProfile(user.uid);
       setProfile(p);
     }

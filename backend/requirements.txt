@@ -16,7 +16,6 @@ dill==0.4.1
 distro==1.9.0
 fastapi==0.135.2
 filelock==3.25.2
-firebase_admin==7.3.0
 frozenlist==1.8.0
 fsspec==2026.2.0
 google-ai-generativelanguage==0.6.15
@@ -25,8 +24,7 @@ google-api-python-client==2.193.0
 google-auth==2.49.1
 google-auth-httplib2==0.3.0
 google-cloud-core==2.5.0
-google-cloud-firestore==2.26.0
-google-cloud-storage==3.4.1
+
 google-crc32c==1.8.0
 google-genai==1.68.0
 google-generativeai==0.8.6
@@ -63,6 +61,8 @@ pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.12.5
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
 pydantic_core==2.41.5
 Pygments==2.20.0
 PyJWT==2.12.1

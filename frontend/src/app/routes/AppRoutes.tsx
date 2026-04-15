@@ -15,7 +15,9 @@ const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const GeneratePage = lazy(() => import('../../features/templates/pages/GeneratePage'));
 const TemplatesPage = lazy(() => import('../../features/templates/pages/TemplatesPage'));
 const DocumentsPage = lazy(() => import('../../features/dashboard/pages/DocumentsPage'));
+const EditorHubPage = lazy(() => import('../../features/editor/pages/EditorHubPage'));
 const EditorPage = lazy(() => import('../../features/editor/pages/EditorPage'));
+const ActivityPage = lazy(() => import('../../pages/ActivityPage'));
 import BillingPage from '../../pages/BillingPage';
 
 // Shared fallback while a lazy chunk is loading
@@ -94,6 +96,24 @@ const AppRoutes = () => {
         />
 
         <Route
+          path="/editor"
+          element={
+            <ProtectedRoute>
+              <EditorHubPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/editor/personal/:id"
+          element={
+            <ProtectedRoute>
+              <EditorPage isPersonal={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/editor/:id"
           element={
             <ProtectedRoute>
@@ -110,6 +130,7 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
 
         {/* FALLBACK */}
         <Route path="*" element={<Navigate to="/" replace />} />

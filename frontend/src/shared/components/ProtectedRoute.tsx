@@ -6,7 +6,9 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  const token = localStorage.getItem('am_access_token');
+
+  if (loading || (!user && token)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <div className="flex flex-col items-center gap-4">
@@ -22,7 +24,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }
 
-  if (!user) {
+  if (!user && !token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

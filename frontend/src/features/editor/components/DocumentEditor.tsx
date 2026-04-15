@@ -37,7 +37,11 @@ interface DocumentEditorProps {
   docId?: string;
   title?: string;
   onTitleChange?: (newTitle: string) => void;
-  toolbarMode?: 'full' | 'menu' | 'controls';
+  toolbarMode?: 'full' | 'menu' | 'controls' | 'none';
+  isSaving?: boolean;
+  onApplySettings?: (s: any) => void;
+  currentSettings?: any;
+  onUploadDocument?: (f: File) => void;
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -58,7 +62,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   docId,
   title = "Untitled",
   onTitleChange,
-  toolbarMode = 'full'
+  toolbarMode = 'full',
+  isSaving = false,
+  onApplySettings,
+  currentSettings,
+  onUploadDocument,
 }) => {
   const [isAiInputOpen, setIsAiInputOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState('');
@@ -118,6 +126,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         editor={editor}
         mode={toolbarMode}
         onSave={handleSave}
+        isSaving={isSaving}
         onPageSetup={onPageSetup}
         onInsertDiagram={onInsertDiagram}
         onToggleRightPanel={onToggleRightPanel}
@@ -126,6 +135,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         onExportDOCX={onExportDOCX}
         onSaveAsTemplate={onSaveAsTemplate}
         onFindReplace={onFindReplace}
+        onApplySettings={onApplySettings}
+        currentSettings={currentSettings}
+        onUploadDocument={onUploadDocument}
       />
       
       <div
@@ -273,13 +285,66 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
             y: 0
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          style={{ transformOrigin: 'top center' }}
-          className="w-full max-w-[210mm] page-container relative"
+          style={{ 
+            transformOrigin: 'top center',
+            '--page-width': (() => {
+              const d = {
+                a4: { w: 210, h: 297 },
+                letter: { w: 215.9, h: 279.4 },
+                legal: { w: 215.9, h: 355.6 },
+                a3: { w: 297, h: 420 },
+                a5: { w: 148, h: 210 }
+              }[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
+              return currentSettings?.orientation === 'landscape' ? `${d.h}mm` : `${d.w}mm`;
+            })(),
+            '--page-height': (() => {
+              const d = {
+                a4: { w: 210, h: 297 },
+                letter: { w: 215.9, h: 279.4 },
+                legal: { w: 215.9, h: 355.6 },
+                a3: { w: 297, h: 420 },
+                a5: { w: 148, h: 210 }
+              }[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
+              return currentSettings?.orientation === 'landscape' ? `${d.w}mm` : `${d.h}mm`;
+            })(),
+            '--page-color': currentSettings?.pageColor || '#ffffff',
+          } as any}
+          className={clsx(
+            "page-container relative mx-auto transition-all duration-500",
+            currentSettings?.showHeader && "show-header",
+            currentSettings?.showFooter && "show-footer"
+          )}
+          data-page-numbers={currentSettings?.pageNumberPos || 'none'}
         >
+          {/* Header Placeholder */}
+          <div className="header-area">
+            <input 
+              className="bg-transparent border-none outline-none w-full text-xs text-[var(--text-muted)] p-2 border-b border-transparent hover:border-stone-200 transition-colors" 
+              placeholder="Header contents..." 
+            />
+          </div>
+
           <EditorContent
             editor={editor}
-            className="bg-white shadow-2xl min-h-[297mm] relative z-10 w-full"
+            className="relative z-10 w-full"
+            style={{ 
+              backgroundColor: currentSettings?.pageColor || '#ffffff',
+              minHeight: currentSettings?.orientation === 'landscape' ? '210mm' : '297mm'
+            }}
           />
+
+          {/* Footer Placeholder */}
+          <div className="footer-area">
+            <input 
+              className="bg-transparent border-none outline-none w-full text-xs text-[var(--text-muted)] p-2 border-t border-transparent hover:border-stone-200 transition-colors" 
+              placeholder="Footer contents..." 
+            />
+          </div>
+
+          {/* Page Number Placeholder */}
+          <div className="page-number-area">
+            1
+          </div>
         </motion.div>
       </div>
     </div>

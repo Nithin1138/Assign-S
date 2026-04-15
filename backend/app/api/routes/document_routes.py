@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
+from pydantic import BaseModel
 
 from app.core.database import SessionLocal
 from app.core.security import get_current_user
@@ -13,8 +14,17 @@ from app.schemas.document_schema import (
 )
 from app.services import document_service
 from app.utils.response import success_response, error_response
+from app.models.shared_document import SharedDocument
 
 router = APIRouter()
+
+class AccessUpdateRequest(BaseModel):
+    user_id: str
+    permission: str
+
+class ShareResponseRequest(BaseModel):
+    share_id: int
+    status: str # accepted, rejected
 
 
 # ----------------------------
@@ -88,7 +98,18 @@ def get_doc(
     doc = document_service.get_document(db, doc_id, user_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+        
+    permission = "owner"
+    if doc.user_id != user_id:
+        shared = db.query(SharedDocument).filter(
+            SharedDocument.document_id == doc_id,
+            SharedDocument.user_id == user_id
+        ).first()
+        permission = shared.permission if shared else "view"
+        
+    response = DocumentResponse.model_validate(doc).model_dump()
+    response["permission"] = permission
+    return response
 
 
 # ----------------------------
@@ -118,7 +139,7 @@ def delete_doc(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    result = document_service.delete_document(db, doc_id)
+    result = document_service.delete_document(db, doc_id, user["uid"])
     if not result:
         raise HTTPException(status_code=404, detail="Document not found")
     return JSONResponse(status_code=200, content=success_response({"deleted": True}))
@@ -198,3 +219,68 @@ def get_shared_docs(
     if user_id != user["uid"]:
         raise HTTPException(status_code=403, detail="Access denied.")
     return document_service.get_shared_documents(db, user_id)
+
+@router.get("/{doc_id}/access")
+def get_doc_access(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    doc = document_service.get_document(db, doc_id, user["uid"])
+    if not doc or doc.user_id != user["uid"]:
+        raise HTTPException(status_code=403, detail="Only the owner can view access.")
+    access_list = document_service.get_document_access_list(db, doc_id)
+    return success_response([{
+        "user_id": item.user_id,
+        "name": item.receiver.displayName if getattr(item, "receiver", None) else "Unknown User",
+        "email": item.receiver.email if getattr(item, "receiver", None) else item.user_id,
+        "permission": item.permission,
+        "granted_by": item.granted_by
+    } for item in access_list])
+
+@router.put("/{doc_id}/access")
+def update_doc_access(
+    doc_id: int,
+    req: AccessUpdateRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    doc = document_service.get_document(db, doc_id, user["uid"])
+    if not doc or doc.user_id != user["uid"]:
+        raise HTTPException(status_code=403, detail="Only the owner can manage access.")
+    
+    updated = document_service.update_document_access(db, doc_id, req.user_id, req.permission, granter_uid=user["uid"])
+    if updated is None and req.permission != "remove":
+        raise HTTPException(status_code=404, detail="User not found with that Mail or ID.")
+    return success_response({"message": "Access updated successfully"})
+
+@router.get("/list/pending")
+def list_pending_shares(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    pending = document_service.get_pending_shares(db, user["uid"])
+    return success_response([{
+        "id": item.id,
+        "document_id": item.document_id,
+        "document_title": item.document.title if item.document else "Unknown Document",
+        "owner_id": item.document.user_id if item.document else "Unknown",
+        "granter_name": item.granter.displayName if item.granter else "Peer",
+        "permission": item.permission,
+        "created_at": str(item.created_at)
+    } for item in pending])
+
+@router.post("/respond-share")
+def respond_share(
+    req: ShareResponseRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    if req.status not in ["accepted", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status. Must be 'accepted' or 'rejected'.")
+    
+    success = document_service.respond_to_share_request(db, req.share_id, user["uid"], req.status)
+    if not success:
+        raise HTTPException(status_code=404, detail="Share request not found.")
+        
+    return success_response({"message": f"Share request {req.status}"})

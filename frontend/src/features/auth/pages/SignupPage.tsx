@@ -12,9 +12,10 @@ import {
   Globe
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { signIn, signUpWithEmail } from '../../../shared/services/auth';
+import { signInWithGoogleToken, signUpWithEmail } from '../../../shared/services/auth';
 import Aurora from '../../editor/components/Aurora';
 import Antigravity from '../../editor/components/Antigravity';
+import { useGoogleLogin } from '@react-oauth/google';
 
 const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -36,18 +37,25 @@ const SignupPage = () => {
     }
   };
 
-  const handleGoogleSignup = async () => {
-    try {
-      await signIn();
-      navigate('/dashboard');
-    } catch (err: any) {
-      console.error('Google signup error:', err);
-      let message = 'Failed to sign up with Google';
-      if (err.code === 'auth/popup-blocked') message = 'Sign-up popup was blocked.';
-      if (err.code === 'auth/popup-closed-by-user') message = 'Sign-up popup was closed.';
-      if (err.code === 'auth/unauthorized-domain') message = 'Domain not authorized in Firebase Console.';
-      toast.error(message + (err.message ? ` (${err.message})` : ''));
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        await signInWithGoogleToken(tokenResponse.access_token);
+        toast.success("Account created via Google!");
+        navigate('/dashboard');
+      } catch (err: any) {
+        console.error('Google signup error:', err);
+        toast.error('Failed to sign up with Google: ' + err.message);
+      }
+    },
+    onError: error => {
+      console.error('Google signup failed:', error);
+      toast.error('Google signup was unsuccessful');
     }
+  });
+
+  const handleGoogleSignup = () => {
+    loginWithGoogle();
   };
 
   return (

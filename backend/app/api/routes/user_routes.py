@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -47,3 +46,13 @@ def update_user(uid: str, req: UserProfileRequest, db: Session = Depends(get_db)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+# ----------------------------
+# GET /users/{uid}/activities
+# ----------------------------
+@router.get("/{uid}/activities")
+def get_user_activities(uid: str, db: Session = Depends(get_db)):
+    from app.repositories import activity_repo
+    activities = activity_repo.get_activities_by_user(db, uid)
+    return success_response(activities)

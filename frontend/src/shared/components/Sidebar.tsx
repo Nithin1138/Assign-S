@@ -23,7 +23,9 @@ import {
   Lock,
   MessageSquare,
   Monitor,
-  CreditCard
+  CreditCard,
+  Search,
+  Edit3
 } from 'lucide-react';
 
 import { useAuth } from '../../features/auth/context/AuthContext';
@@ -67,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { icon: Sparkles, label: 'Generate', path: '/generate' },
     { icon: FileText, label: 'Documents', path: '/documents' },
     { icon: Book, label: 'Templates', path: '/templates' },
+    { icon: Edit3, label: 'Editor', path: '/editor' },
   ];
 
   const sidebarContent = (
@@ -77,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand Identity / Logo */}
       <div className="flex justify-center mb-3 px-4 pt-2">
         <Link to="/dashboard" className="relative flex items-center justify-center">
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.1, rotate: 5 }}
             className="w-12 h-12 bg-[var(--text-main)] rounded-[1.2rem] flex items-center justify-center text-[var(--bg-card)] shadow-[0_12px_25px_rgba(0,0,0,0.1)] relative z-10 overflow-hidden"
           >
@@ -95,7 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation Stack */}
       <nav className="flex-1 flex flex-col items-center gap-4">
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = item.path === '/editor' 
+            ? location.pathname.startsWith('/editor') 
+            : location.pathname === item.path;
           return (
             <Link
               key={item.path}
@@ -130,8 +135,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 "relative z-10 flex items-center justify-center transition-all duration-500",
                 isActive ? "text-[var(--text-main)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-main)]"
               )}>
-                <item.icon 
-                  size={22} 
+                <item.icon
+                  size={22}
                   className={clsx(
                     "transition-all duration-300",
                     isActive ? "scale-110 drop-shadow-[0_0_8px_rgba(0,0,0,0.1)]" : "group-hover:scale-110"
@@ -160,14 +165,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="group relative transition-all outline-none"
         >
           <div className="absolute -inset-2 bg-[var(--text-main)]/5 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          
+
           <div className={clsx(
             "relative z-10 w-11 h-11 rounded-full border-2 p-0.5 transition-all duration-500 group-hover:rotate-12",
             isProfileOpen ? "border-[var(--text-main)] scale-110 shadow-lg" : "border-[var(--border-main)] group-hover:border-[var(--text-main)]"
           )}>
             <div className="w-full h-full rounded-full overflow-hidden bg-[var(--bg-card)] flex items-center justify-center shadow-lg">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="Scholar" className="w-full h-full object-cover" />
+              {profile?.photoURL ? (
+                <img src={profile.photoURL} alt="Scholar" className="w-full h-full object-cover" />
               ) : (
                 <UserIcon size={18} className="text-[var(--text-main)] opacity-40" />
               )}
@@ -180,14 +185,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isProfileOpen && (
             <>
               {/* Invisible Click-away Overlay */}
-              <div 
-                className="fixed inset-0 z-40 bg-transparent" 
+              <div
+                className="fixed inset-0 z-40 bg-transparent"
                 onClick={() => {
                   setIsProfileOpen(false);
                   setIsNotificationOpen(false);
-                }} 
+                }}
               />
-              
+
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, x: isMobile || isTablet ? 0 : 20, y: isMobile || isTablet ? 20 : 10 }}
                 animate={{ opacity: 1, scale: 1, x: isMobile || isTablet ? 0 : 90, y: 0 }}
@@ -201,15 +206,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="p-5 border-b border-[var(--border-main)] bg-gradient-to-br from-white/[0.02] to-transparent">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-[var(--bg-card)] border border-[var(--border-main)] flex items-center justify-center shadow-inner">
-                      {user?.photoURL ? (
-                        <img src={user.photoURL} alt="Scholar" className="w-full h-full object-cover" />
+                      {profile?.photoURL ? (
+                        <img src={profile.photoURL} alt="Scholar" className="w-full h-full object-cover" />
                       ) : (
                         <UserIcon size={20} className="text-[var(--text-main)] opacity-40" />
                       )}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[var(--text-main)] font-bold text-sm">{user?.displayName || 'Veera Nithin'}</span>
-                      <span className="text-[var(--text-muted)] text-[11px] truncate max-w-[160px]">{user?.email || 'veeranithin9@gmail.com'}</span>
+                      <span className="text-[var(--text-main)] font-bold text-sm">{profile?.displayName || 'Scholar'}</span>
+                      <span className="text-[var(--text-muted)] text-[11px] truncate max-w-[160px]">{profile?.email || 'No email associated'}</span>
                     </div>
                   </div>
                 </div>
@@ -220,13 +225,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     { icon: UserIcon, label: 'My Profile', onClick: () => navigate('/profile') },
                     { icon: Settings, label: 'Account', onClick: () => navigate('/settings') },
                     { icon: CreditCard, label: 'Billing', onClick: () => navigate('/billing') },
-                    { 
-                      icon: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? Sun : Moon, 
-                      label: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? 'Light Mode' : 'Dark Mode', 
+                    {
+                      icon: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? Sun : Moon,
+                      label: (profile?.preferences?.theme === 'dark' || profile?.preferences?.theme === 'midnight') ? 'Light Mode' : 'Dark Mode',
                       onClick: async () => {
                         const current = profile?.preferences?.theme || 'light';
                         const next = (current === 'dark' || current === 'midnight') ? 'light' : 'dark';
-                        
+
                         // Optimistic UI: Apply theme immediately
                         const root = document.documentElement;
                         root.classList.remove('light', 'dark', 'midnight', 'nord', 'coffee', 'emerald', 'rose', 'amber');
@@ -234,15 +239,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                         if (user) {
                           try {
-                            await updateUserProfile(user.uid, { 
-                              preferences: { ...(profile?.preferences || {}), theme: next } 
+                            await updateUserProfile(user.uid, {
+                              preferences: { ...(profile?.preferences || {}), theme: next }
                             } as UserProfile);
                             await refreshProfile();
                           } catch (error) {
                             console.error("Theme persistent sync failed:", error);
                           }
                         }
-                      } 
+                      }
                     },
                     { icon: Bell, label: 'Notification', hasArrow: true, onClick: () => setIsNotificationOpen(!isNotificationOpen) },
                   ].map((item, idx) => (

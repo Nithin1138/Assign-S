@@ -12,10 +12,12 @@ import {
   ArrowRight,
   Clock,
   GraduationCap,
-  BookOpen
+  BookOpen,
+  Bell
 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../auth/context/AuthContext';
 import { getUserDocuments, Document as Assignment } from '../../../shared/services/db';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
@@ -75,19 +77,22 @@ const DashboardPage = () => {
               Academic Workspace
             </motion.div>
             <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-main)] tracking-tight">
-              Welcome, <span className="text-[var(--text-muted)] font-medium">{user?.displayName?.split(' ')[0] || 'Scholar'}</span>.
+              Welcome, <span className="text-[var(--text-muted)] font-medium">{profile?.displayName?.split(' ')[0] || 'Scholar'}</span>.
             </h1>
           </div>
 
-          <div className="relative w-full md:w-80 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--text-main)] transition-colors" size={18} />
-            <input
-              type="text"
-              placeholder="Search your library..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-6 py-4 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl focus:ring-2 focus:ring-[var(--accent-main)] outline-none transition-all shadow-sm hover:shadow-md text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
-            />
+          <div className="flex justify-end md:w-fit">
+            <button
+              onClick={() => toast('No unread notifications', { icon: '📭' })}
+              className="relative flex items-center gap-3 px-8 py-4 rounded-[1.5rem] border border-[var(--border-main)] hover:border-[var(--text-main)] transition-all bg-[var(--bg-card)]/40 backdrop-blur-xl shadow-sm text-[var(--text-main)] group"
+            >
+              <div className="relative">
+                <Bell size={20} className="text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors" />
+                {/* Red indicator dot for unread */}
+                <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-[var(--bg-card)] shadow-sm animate-pulse" />
+              </div>
+              <span className="font-bold text-sm tracking-tight uppercase tracking-[0.1em]">Notifications</span>
+            </button>
           </div>
         </div>
 

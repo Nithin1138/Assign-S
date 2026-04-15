@@ -8,8 +8,6 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
 import { useAuth } from '../../features/auth/context/AuthContext';
 
 interface AvatarModalProps {
@@ -34,7 +32,7 @@ const AvatarModal: React.FC<AvatarModalProps> = ({
     const seeds = ['Felix', 'Aneka', 'Coco', 'Luna', 'Jasper', 'Milo', 'Oliver', 'Leo', 'Bella', 'Charlie', 'Max', 'Sophie', 'Jack', 'Mia'];
     return styles.flatMap(style =>
       seeds.map(seed => `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`)
-    ).sort(() => Math.random() - 0.5).slice(0, 15);
+    ).sort(() => Math.random() - 0.5).slice(0, 8);
   }, []);
 
   const [displayAvatars, setDisplayAvatars] = useState(predefinedAvatars);
@@ -56,19 +54,31 @@ const AvatarModal: React.FC<AvatarModalProps> = ({
       toast.error('Please upload an image file');
       return;
     }
+    
+    // Check file size (< 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      onSelect(url);
-      toast.success('Avatar uploaded successfully');
-      onClose();
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Url = e.target?.result as string;
+        onSelect(base64Url);
+        toast.success('Avatar uploaded successfully');
+        onClose();
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read file');
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to upload avatar');
-    } finally {
+      toast.error('Failed to process avatar');
       setUploading(false);
     }
   };
@@ -175,7 +185,7 @@ const AvatarModal: React.FC<AvatarModalProps> = ({
               />
 
               <div className="flex justify-between items-center pt-8 border-t border-stone-100">
-                <p className="text-stone-400 text-sm font-medium italic">Powered by DiceBear API</p>
+                <div />
                 <div className="flex gap-4">
                   <button
                     onClick={onClose}

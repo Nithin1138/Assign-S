@@ -6,9 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 # Routers
-from app.api.routes import document_routes, user_routes, template_routes
+from app.api.routes import document_routes, user_routes, template_routes, auth_routes, editor_document_routes
 
 # DB
+from app.core.db_sync import sync_database
 from app.core.database import Base, engine
 
 # --------------------------------------------------
@@ -21,14 +22,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-
 # ----------------------------
 # Lifespan (replaces on_event)
 # ----------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Perform a 'Clean Start Up Grade' - Auto-create tables and sync columns
+    sync_database()
     yield
 
 
@@ -76,6 +76,12 @@ app.include_router(
 )
 
 app.include_router(
+    editor_document_routes.router,
+    prefix="/api/v1/editor-documents",
+    tags=["Editor Documents"]
+)
+
+app.include_router(
     user_routes.router,
     prefix="/api/v1/users",
     tags=["Users"]
@@ -85,6 +91,12 @@ app.include_router(
     template_routes.router,
     prefix="/api/v1/templates",
     tags=["Templates"]
+)
+
+app.include_router(
+    auth_routes.router,
+    prefix="/api/v1/auth",
+    tags=["Auth"]
 )
 
 

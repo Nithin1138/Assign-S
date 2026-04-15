@@ -14,6 +14,8 @@ interface EditorStatusBarProps {
   zoom: number;
   onZoomChange: (zoom: number) => void;
   onShowWordCount?: () => void;
+  lastSaved?: Date | null;
+  isSaving?: boolean;
 }
 
 const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
@@ -22,7 +24,9 @@ const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
   pageCount,
   zoom,
   onZoomChange,
-  onShowWordCount
+  onShowWordCount,
+  lastSaved,
+  isSaving
 }) => {
   return (
     <div className="h-10 bg-[var(--bg-card)] border-t border-[var(--border-main)] flex items-center px-4 justify-between text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest z-30 sticky bottom-0 overflow-x-auto no-scrollbar">
@@ -41,6 +45,14 @@ const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
         <div className="hidden sm:flex items-center gap-2">
           <MousePointer2 size={14} className="text-[var(--text-muted)]" />
           Chars: <span className="text-[var(--text-main)]">{charCount}</span>
+        </div>
+        
+        {/* Sync Status */}
+        <div className="flex items-center gap-2 border-l border-[var(--border-main)] pl-4">
+          <RefreshCw size={12} className={clsx("text-[var(--text-muted)]", isSaving && "animate-spin")} />
+          <span className={clsx("transition-all", isSaving ? "text-[var(--text-main)]" : "text-[var(--text-muted)]")}>
+            {isSaving ? 'Saving...' : lastSaved ? `Saved ${Math.floor((new Date().getTime() - lastSaved.getTime()) / 60000) < 1 ? '< 1m' : Math.floor((new Date().getTime() - lastSaved.getTime()) / 60000) + 'm'} ago` : 'Not Saved'}
+          </span>
         </div>
       </div>
 

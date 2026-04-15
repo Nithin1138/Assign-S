@@ -19,6 +19,7 @@ import {
 import { Editor } from '@tiptap/react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SamHead } from './SamRobot';
 
 interface SectionAIPanelProps {
   editor: Editor | null;
@@ -113,10 +114,10 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
 
   const aiActions = [
     { id: 'improve', label: 'Improve', icon: Zap, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { id: 'expand', label: 'Expand', icon: Maximize2, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 'shorten', label: 'Shorten', icon: Minimize2, color: 'text-purple-500', bg: 'bg-purple-50' },
+    { id: 'expand', label: 'Expand', icon: Maximize2, color: 'text-stone-600', bg: 'bg-stone-50' },
+    { id: 'shorten', label: 'Shorten', icon: Minimize2, color: 'text-stone-600', bg: 'bg-stone-50' },
     { id: 'rewrite', label: 'Rewrite', icon: RefreshCw, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 'summarize', label: 'Summarize', icon: Check, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+    { id: 'summarize', label: 'Summarize', icon: Check, color: 'text-stone-900', bg: 'bg-stone-100' },
     { id: 'bullet_points', label: 'Bullets', icon: Plus, color: 'text-rose-500', bg: 'bg-rose-50' },
   ];
 
@@ -165,9 +166,6 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
       <div className="p-6 border-b border-[var(--border-main)] flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[var(--text-main)] rounded-lg flex items-center justify-center text-[var(--bg-card)]">
-              <Sparkles size={16} />
-            </div>
             <h3 className="font-bold text-[var(--text-main)]">AI Assistant</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -314,10 +312,10 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             className="px-4 pb-0 z-20"
           >
-            <div className="bg-[var(--bg-app)] border border-[var(--border-main)] rounded-2xl p-4 shadow-2xl border-indigo-500/20 space-y-3">
+            <div className="bg-[var(--bg-app)] border border-[var(--border-main)] rounded-2xl p-4 shadow-2xl border-stone-200/50 space-y-3">
               <div className="flex items-center justify-between border-b border-[var(--border-main)]/50 pb-2">
-                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles size={12} className="animate-pulse" /> AI Preview
+                <span className="text-[10px] font-bold text-stone-900 uppercase tracking-widest flex items-center gap-2">
+                  <SamHead size={14} className="rounded-md" /> Sam's Draft
                 </span>
                 <button 
                   onClick={() => setPreviewResponse(null)}
@@ -346,7 +344,7 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
                     setHistory(prev => [newItem, ...prev].slice(0, 20));
                     setPreviewResponse(null);
                   }}
-                  className="flex-1 py-2 bg-indigo-500 text-white rounded-xl text-[10px] font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-600 active:scale-95 transition-all"
+                  className="flex-1 py-2 bg-stone-900 text-white rounded-xl text-[10px] font-bold shadow-lg shadow-stone-900/10 hover:bg-stone-800 active:scale-95 transition-all"
                 >
                   Insert In Document
                 </button>
@@ -386,7 +384,7 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
             placeholder={isRecording ? "Listening..." : "Ask AI to write anything..."}
             className={clsx(
               "w-full bg-transparent border-none p-3 pb-0 text-sm placeholder:text-[var(--text-muted)] focus:outline-none min-h-[50px] resize-none transition-colors",
-              isRecording ? "text-indigo-500 animate-pulse" : "text-[var(--text-main)]"
+              isRecording ? "text-stone-900 animate-pulse" : "text-[var(--text-main)]"
             )}
           />
           
@@ -421,7 +419,7 @@ const SectionAIPanel: React.FC<SectionAIPanelProps> = ({ editor, loading, onActi
             <button 
               onClick={() => handleAction('custom')}
               disabled={loading || !prompt.trim() || isRecording}
-              className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500 text-white rounded-full font-bold transition-all disabled:opacity-50 active:scale-95 group shadow-md"
+              className="flex items-center gap-2 px-4 py-1.5 bg-stone-900 text-white rounded-full font-bold transition-all disabled:opacity-50 active:scale-95 group shadow-md"
             >
               <Send size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               <span className="text-[9px] uppercase tracking-widest">Generate</span>
