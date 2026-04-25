@@ -80,7 +80,9 @@ def get_docs(
 ):
     if user_id != user["uid"]:
         raise HTTPException(status_code=403, detail="Access denied.")
-    return document_service.get_documents(db, user_id)
+    docs = document_service.get_documents(db, user_id)
+    print(f"[backend] Found {len(docs)} docs for user {user_id}")
+    return docs
 
 
 # ----------------------------
@@ -143,6 +145,54 @@ def delete_doc(
     if not result:
         raise HTTPException(status_code=404, detail="Document not found")
     return JSONResponse(status_code=200, content=success_response({"deleted": True}))
+
+# ----------------------------
+# VERSIONS
+# ----------------------------
+
+from app.schemas.document_schema import DocumentVersionResponse
+
+@router.get("/{doc_id}/versions", response_model=List[DocumentVersionResponse])
+def get_doc_versions(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    versions = document_service.get_document_versions(db, doc_id, user["uid"])
+    if versions is None:
+        raise HTTPException(status_code=404, detail="Document not found or access denied")
+    return [DocumentVersionResponse.model_validate(v).model_dump() for v in versions]
+
+from pydantic import BaseModel
+class RenameVersionRequest(BaseModel):
+    name: str
+
+@router.put("/{doc_id}/versions/{version_id}")
+def rename_doc_version(
+    doc_id: int,
+    version_id: int,
+    request: RenameVersionRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    version = document_service.rename_document_version(db, doc_id, version_id, request.name, user["uid"])
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found or access denied")
+    return JSONResponse(status_code=200, content=success_response({"renamed": True, "name": request.name}))
+
+@router.delete("/{doc_id}/versions/{version_id}")
+def delete_doc_version(
+    doc_id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    success = document_service.delete_document_version(db, doc_id, version_id, user["uid"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Version not found or access denied")
+    return JSONResponse(status_code=200, content=success_response({"deleted": True}))
+
+
 
 
 # ----------------------------

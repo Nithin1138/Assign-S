@@ -12,6 +12,18 @@ def create_template(db, data):
     # Extract logs if provided for normalization
     logs = data.pop("extraction_details", None)
     
+    # Duplicate Check
+    doc_id = data.get("doc_id")
+    user_id = data.get("user_id")
+    if doc_id and user_id:
+        existing = db.query(Template).filter(
+            Template.doc_id == doc_id,
+            Template.user_id == user_id,
+            or_(Template.is_deleted == False, Template.is_deleted == None)
+        ).first()
+        if existing:
+            return "ALREADY_EXISTS"
+    
     template = Template(**data)
     db.add(template)
     db.commit()

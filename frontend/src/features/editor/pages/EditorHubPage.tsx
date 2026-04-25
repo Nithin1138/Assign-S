@@ -160,12 +160,13 @@ const EditorHubPage = () => {
     reader.readAsArrayBuffer(file);
   };
 
+  const isMergingEnabled = profile?.preferences?.mergeDocuments ?? true;
   const filteredDocs = documents
     .filter(d =>
       (d.taskType === 'blank' || d.taskType === 'upload') &&
       d.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .slice(0, 6);
+    .slice(0, isMergingEnabled ? 6 : 999);
 
   return (
     <Layout>
@@ -319,6 +320,12 @@ const EditorHubPage = () => {
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           Modified {new Date(doc.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </div>
+                        {isMergingEnabled && (
+                          <div className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-[var(--accent-main)]/5 text-[var(--accent-main)] rounded-full border border-[var(--accent-main)]/10 w-fit">
+                            <div className="w-1 h-1 rounded-full bg-[var(--accent-main)] animate-pulse" />
+                            Personal Draft
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -326,13 +333,13 @@ const EditorHubPage = () => {
               </div>
             )}
 
-            {documents.length > 6 && (
+            {isMergingEnabled && documents.length > 6 && (
               <div className="text-center pt-8">
                 <button
                   onClick={() => navigate('/documents')}
                   className="px-8 py-4 rounded-2xl bg-[var(--text-main)] text-[var(--bg-card)] text-sm font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
                 >
-                  View Full Library
+                  View Unified Library
                 </button>
               </div>
             )}

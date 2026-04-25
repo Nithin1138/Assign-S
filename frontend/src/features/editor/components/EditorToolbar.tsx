@@ -15,11 +15,20 @@ import {
   CaseSensitive, CaseUpper, CaseLower, Pilcrow, LayoutGrid,
   ArrowDownNarrowWide, ArrowUpNarrowWide, Ruler, Eye, EyeOff,
   PanelRightOpen, PanelRightClose, Loader2, LetterText, Workflow, X,
-  ChevronRight, FileUp,
+  ChevronRight, FileUp, Globe, Monitor
 } from 'lucide-react';
 import clsx from 'clsx';
 import { AnimatePresence, motion } from 'framer-motion';
 import SamRobot from './SamRobot';
+import { useNavigate } from 'react-router-dom';
+import { getUserDocuments, Document } from '../../../shared/services/db';
+
+const SCROLLBAR_STYLE = `
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+`;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,33 +38,33 @@ const FONT_FAMILIES = [
   'Inter', 'Trebuchet MS', 'Palatino Linotype', 'Impact',
 ];
 
-const FONT_SIZES = ['8','9','10','10.5','11','12','13','14','16','18','20','22','24','26','28','32','36','48','72','96'];
+const FONT_SIZES = ['8', '9', '10', '10.5', '11', '12', '13', '14', '16', '18', '20', '22', '24', '26', '28', '32', '36', '48', '72', '96'];
 
 const COLORS = [
-  '#000000','#434343','#666666','#999999','#B7B7B7','#CCCCCC','#D9D9D9','#EFEFEF','#F3F3F3','#FFFFFF',
-  '#980000','#FF0000','#FF9900','#FFFF00','#00FF00','#00FFFF','#4A86E8','#0000FF','#9900FF','#FF00FF',
-  '#E6B8AF','#F4CCCC','#FCE5CD','#FFF2CC','#D9EAD3','#D0E0E3','#C9DAF8','#CFE2F3','#D9D2E9','#EAD1DC',
-  '#DD7E6B','#EA9999','#F9CB9C','#FFE599','#B6D7A8','#A2C4C9','#A4C2F4','#9FC5E8','#B4A7D6','#D5A6BD',
-  '#CC4125','#E06666','#F6B26B','#FFD966','#93C47D','#76A5AF','#6D9EEB','#6FA8DC','#8E7CC3','#C27BA0',
-  '#A61C00','#CC0000','#E69138','#F1C232','#6AA84F','#45818E','#3C78D8','#3D85C6','#674EA7','#A64D79',
-  '#85200C','#990000','#B45F06','#BF9000','#38761D','#134F5C','#1155CC','#0B5394','#351C75','#741B47',
-  '#5B0F00','#660000','#783F04','#7F6000','#274E13','#0C343D','#1C4587','#073763','#20124D','#4C1130',
+  '#000000', '#434343', '#666666', '#999999', '#B7B7B7', '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF',
+  '#980000', '#FF0000', '#FF9900', '#FFFF00', '#00FF00', '#00FFFF', '#4A86E8', '#0000FF', '#9900FF', '#FF00FF',
+  '#E6B8AF', '#F4CCCC', '#FCE5CD', '#FFF2CC', '#D9EAD3', '#D0E0E3', '#C9DAF8', '#CFE2F3', '#D9D2E9', '#EAD1DC',
+  '#DD7E6B', '#EA9999', '#F9CB9C', '#FFE599', '#B6D7A8', '#A2C4C9', '#A4C2F4', '#9FC5E8', '#B4A7D6', '#D5A6BD',
+  '#CC4125', '#E06666', '#F6B26B', '#FFD966', '#93C47D', '#76A5AF', '#6D9EEB', '#6FA8DC', '#8E7CC3', '#C27BA0',
+  '#A61C00', '#CC0000', '#E69138', '#F1C232', '#6AA84F', '#45818E', '#3C78D8', '#3D85C6', '#674EA7', '#A64D79',
+  '#85200C', '#990000', '#B45F06', '#BF9000', '#38761D', '#134F5C', '#1155CC', '#0B5394', '#351C75', '#741B47',
+  '#5B0F00', '#660000', '#783F04', '#7F6000', '#274E13', '#0C343D', '#1C4587', '#073763', '#20124D', '#4C1130',
 ];
 
 const HIGHLIGHT_COLORS = [
-  '#FFFF00','#00FF00','#00FFFF','#FF00FF','#0000FF',
-  '#FF0000','#FF8C00','#FFB6C1','#98FB98','#ADD8E6',
-  '#DDA0DD','#F0E68C','#FFA07A','#87CEEB','#90EE90',
-  '#FFDAB9','#E6E6FA','#FFFACD','#D4EDDA','#CCE5FF',
-  '#F8D7DA','#FFF3CD','#D1ECF1','#E2D5F1','#F5E6CC',
+  '#FFFF00', '#00FF00', '#00FFFF', '#FF00FF', '#0000FF',
+  '#FF0000', '#FF8C00', '#FFB6C1', '#98FB98', '#ADD8E6',
+  '#DDA0DD', '#F0E68C', '#FFA07A', '#87CEEB', '#90EE90',
+  '#FFDAB9', '#E6E6FA', '#FFFACD', '#D4EDDA', '#CCE5FF',
+  '#F8D7DA', '#FFF3CD', '#D1ECF1', '#E2D5F1', '#F5E6CC',
 ];
 
 const SPECIAL_CHARACTERS = [
-  '©','®','™','°','±','÷','×','µ','€','£','¥','¢',
-  '†','‡','§','¶','•','…','—','–','«','»','‹','›',
-  'α','β','γ','δ','ε','π','Ω','Σ','∞','≈','≠','≤',
-  '≥','∑','∏','∫','√','∂','∆','∇','∈','∉','⊂','⊃',
-  '←','→','↑','↓','↔','⇐','⇒','⇑','⇓','⇔','♠','♣',
+  '©', '®', '™', '°', '±', '÷', '×', 'µ', '€', '£', '¥', '¢',
+  '†', '‡', '§', '¶', '•', '…', '—', '–', '«', '»', '‹', '›',
+  'α', 'β', 'γ', 'δ', 'ε', 'π', 'Ω', 'Σ', '∞', '≈', '≠', '≤',
+  '≥', '∑', '∏', '∫', '√', '∂', '∆', '∇', '∈', '∉', '⊂', '⊃',
+  '←', '→', '↑', '↓', '↔', '⇐', '⇒', '⇑', '⇓', '⇔', '♠', '♣',
 ];
 
 const LINE_SPACINGS = [
@@ -67,7 +76,45 @@ const LINE_SPACINGS = [
   { label: '3.0', value: '3' },
 ];
 
-const DropdownContext = React.createContext<{ close: () => void }>({ close: () => {} });
+const PAPER_SIZES = [
+  { label: 'A4', value: 'a4' },
+  { label: 'Letter', value: 'letter' },
+  { label: 'Legal', value: 'legal' },
+  { label: 'A3', value: 'a3' },
+  { label: 'A5', value: 'a5' },
+];
+
+const DOCUMENT_THEMES = [
+  { label: 'Academic Classic', font: 'Times New Roman', color: '#1C1917', pageColor: '#FFFFFF' },
+  { label: 'Modern Report', font: 'Inter', color: '#1F2937', pageColor: '#F8FAFC' },
+  { label: 'Editorial', font: 'Georgia', color: '#111827', pageColor: '#FFF7ED' },
+  { label: 'Technical', font: 'Courier New', color: '#0F172A', pageColor: '#F1F5F9' },
+];
+
+const STYLE_SETS = [
+  { label: 'Simple Academic', font: 'Times New Roman', color: '#1C1917', lineHeight: '1.5' },
+  { label: 'Compact Notes', font: 'Arial', color: '#27272A', lineHeight: '1.15' },
+  { label: 'Manuscript', font: 'Garamond', color: '#18181B', lineHeight: '2' },
+  { label: 'Technical Brief', font: 'Inter', color: '#0F172A', lineHeight: '1.3' },
+];
+
+const STYLE_GALLERY = [
+  'Title', 'Subtitle', 'Heading 1', 'Heading 2', 'Heading 3',
+  'Emphasis', 'Strong', 'Intense Quote', 'Caption', 'TOC Heading',
+];
+
+const THESAURUS: Record<string, string[]> = {
+  important: ['significant', 'essential', 'critical', 'notable'],
+  show: ['demonstrate', 'reveal', 'present', 'indicate'],
+  good: ['strong', 'effective', 'sound', 'beneficial'],
+  bad: ['weak', 'harmful', 'poor', 'adverse'],
+  use: ['apply', 'employ', 'utilize', 'adopt'],
+  make: ['create', 'produce', 'form', 'generate'],
+  help: ['support', 'assist', 'enable', 'aid'],
+  improve: ['enhance', 'refine', 'strengthen', 'upgrade'],
+};
+
+const DropdownContext = React.createContext<{ close: () => void }>({ close: () => { } });
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +140,13 @@ interface EditorToolbarProps {
   onApplySettings?: (s: any) => void;
   currentSettings?: any;
   onUploadDocument?: (f: File) => void;
+  onOpenCompiler?: () => void;
+  compilerState?: 'open' | 'minimized' | 'closed';
+  user?: any;
+  onOpenVersionHistory?: () => void;
+  onInternalShare?: () => void;
+  onExternalShare?: () => void;
+  onEmailDocument?: () => void;
 }
 
 // ─── Sub‑components ───────────────────────────────────────────────────────────
@@ -171,7 +225,7 @@ const MenuItem = ({
   icon?: any; label: string; shortcut?: string; onClick: () => void; danger?: boolean; disabled?: boolean; active?: boolean;
 }) => {
   const { close } = React.useContext(DropdownContext);
-  
+
   return (
     <button
       type="button"
@@ -185,7 +239,7 @@ const MenuItem = ({
       )}
     >
       {Icon && <Icon size={13.5} className={clsx("shrink-0", active ? "opacity-100" : "opacity-50")} />}
-      <span className="flex-1 font-medium tracking-tight">{label}</span>
+      <span className="flex-1 font-medium tracking-tight truncate pr-2">{label}</span>
       {shortcut && (
         <span className={clsx(
           "text-[9px] font-bold tracking-tight opacity-50 px-1 py-0 rounded border border-current ml-2",
@@ -206,12 +260,12 @@ const SubMenu = ({
   const [open, setOpen] = useState(false);
   const timeoutRef = useRef<any>(null);
 
-  const handleEnter = () => { 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current); 
-    setOpen(true); 
+  const handleEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpen(true);
   };
-  const handleLeave = () => { 
-    timeoutRef.current = setTimeout(() => setOpen(false), 80); 
+  const handleLeave = () => {
+    timeoutRef.current = setTimeout(() => setOpen(false), 80);
   };
 
   return (
@@ -231,7 +285,7 @@ const SubMenu = ({
           <div className="rotate-180 ml-auto"><ChevronRight size={12} className={clsx("transition-opacity", (open || active) ? "opacity-100" : "opacity-30")} /></div>
         )}
       </button>
-      
+
       <AnimatePresence>
         {open && (
           <motion.div
@@ -240,12 +294,14 @@ const SubMenu = ({
             exit={{ opacity: 0, x: side === 'right' ? 6 : -6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 450, damping: 35 }}
             className={clsx(
-              "absolute z-[300] min-w-[190px] bg-white border border-[var(--border-main)] rounded-2xl shadow-2xl py-1 overflow-hidden select-none",
+              "absolute z-[300] min-w-[150px] bg-white border border-[var(--border-main)] rounded-2xl shadow-2xl py-1 select-none flex flex-col",
               side === 'right' ? "left-[calc(100%-6px)]" : "right-[calc(100%-6px)]",
-              "top-[-6px]"
+              "top-[-6px] max-h-[380px]"
             )}
           >
-            {children}
+            <div className="overflow-y-auto flex-1 custom-scrollbar scroll-smooth">
+              {children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -347,9 +403,9 @@ const ColorPicker = ({
           <Icon size={14} />
           <div className="w-5 h-1 rounded-full shadow-sm" style={{ backgroundColor: activeColor || '#000' }} />
         </div>
-        <div 
-          className="w-3.5 h-3.5 rounded-full border border-stone-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]" 
-          style={{ backgroundColor: activeColor || 'transparent' }} 
+        <div
+          className="w-3.5 h-3.5 rounded-full border border-stone-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"
+          style={{ backgroundColor: activeColor || 'transparent' }}
         />
         <ChevronDown size={10} className={clsx("transition-transform opacity-40", open && "rotate-180")} />
       </button>
@@ -390,11 +446,11 @@ const ColorPicker = ({
 
               {view === 'standard' && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                   <div className="grid gap-1 grid-cols-12">
+                  <div className="grid gap-1 grid-cols-12">
                     {STANDARD_CHART.map((c, i) => (
                       <button
                         key={i}
-                        onClick={() => { 
+                        onClick={() => {
                           // Convert HSL string to Hex for internal state
                           const dummy = document.createElement('div');
                           dummy.style.color = c;
@@ -418,29 +474,29 @@ const ColorPicker = ({
                   {/* Hex Preview Section */}
                   <div className="flex gap-3 items-center">
                     <div className="w-14 h-14 rounded-2xl shadow-inner border border-stone-100 relative overflow-hidden" style={{ backgroundColor: hex, opacity: opacity }}>
-                       <div className="absolute inset-x-0 bottom-0 py-0.5 bg-black/10 text-center text-[8px] font-bold text-white uppercase drop-shadow-sm">Preview</div>
+                      <div className="absolute inset-x-0 bottom-0 py-0.5 bg-black/10 text-center text-[8px] font-bold text-white uppercase drop-shadow-sm">Preview</div>
                     </div>
                     <div className="flex-1">
-                       <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Color Code</label>
-                       <div className="flex gap-2">
-                         <input 
-                            value={hex}
-                            onChange={(e) => setHex(e.target.value)}
-                            onBlur={() => handleApply(hex, opacity)}
-                            className="flex-1 p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-[var(--accent-main)]"
-                          />
-                          <button 
-                            onClick={() => {
-                              const input = document.createElement('input');
-                              input.type = 'color';
-                              input.onchange = (e: any) => { setHex(e.target.value); handleApply(e.target.value, opacity); };
-                              input.click();
-                            }}
-                            className="p-2 bg-stone-50 border border-stone-200 rounded-xl hover:bg-white transition-all shadow-sm"
-                          >
-                            <Sparkles size={14} className="text-amber-500" />
-                          </button>
-                       </div>
+                      <label className="text-[9px] font-bold text-stone-400 uppercase tracking-widest block mb-1">Color Code</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={hex}
+                          onChange={(e) => setHex(e.target.value)}
+                          onBlur={() => handleApply(hex, opacity)}
+                          className="flex-1 p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-[var(--accent-main)]"
+                        />
+                        <button
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'color';
+                            input.onchange = (e: any) => { setHex(e.target.value); handleApply(e.target.value, opacity); };
+                            input.click();
+                          }}
+                          className="p-2 bg-stone-50 border border-stone-200 rounded-xl hover:bg-white transition-all shadow-sm"
+                        >
+                          <Sparkles size={14} className="text-amber-500" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -451,7 +507,7 @@ const ColorPicker = ({
                         <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Opacity</label>
                         <span className="text-[10px] font-mono font-bold text-stone-600">{Math.round(opacity * 100)}%</span>
                       </div>
-                      <input 
+                      <input
                         type="range" min="0" max="1" step="0.01" value={opacity}
                         onChange={(e) => { const v = parseFloat(e.target.value); setOpacity(v); handleApply(hex, v); }}
                         className="w-full h-1.5 bg-stone-100 rounded-lg appearance-none cursor-pointer accent-[var(--accent-main)]"
@@ -466,14 +522,14 @@ const ColorPicker = ({
               )}
 
               <div className="mt-5 pt-4 border-t border-stone-100 flex justify-between items-center">
-                 <button onClick={() => { onSelect('transparent'); setOpen(false); }} className="text-[10px] font-bold text-stone-400 hover:text-red-500 transition-colors">
-                   Reset to Default
-                 </button>
-                 {view !== 'palette' && (
-                   <button onClick={() => setView('palette')} className="text-[10px] font-bold text-[var(--accent-main)] hover:underline">
-                     Back to Palette
-                   </button>
-                 )}
+                <button onClick={() => { onSelect('transparent'); setOpen(false); }} className="text-[10px] font-bold text-stone-400 hover:text-red-500 transition-colors">
+                  Reset to Default
+                </button>
+                {view !== 'palette' && (
+                  <button onClick={() => setView('palette')} className="text-[10px] font-bold text-[var(--accent-main)] hover:underline">
+                    Back to Palette
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -488,50 +544,162 @@ const ColorPicker = ({
 const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => void }) => {
   const [find, setFind] = useState('');
   const [replace, setReplace] = useState('');
+  const [matchCount, setMatchCount] = useState(0);
+  const [matchIndex, setMatchIndex] = useState(0);
 
-  const doFind = () => { if (find) (window as any).find?.(find); };
+  // Collect all match positions in the document
+  const getMatches = (searchTerm: string) => {
+    if (!searchTerm) return [];
+    const matches: { from: number; to: number }[] = [];
+    const lower = searchTerm.toLowerCase();
+    editor.state.doc.descendants((node, pos) => {
+      if (!node.isText || !node.text) return;
+      let idx = node.text.toLowerCase().indexOf(lower);
+      while (idx !== -1) {
+        matches.push({ from: pos + idx, to: pos + idx + searchTerm.length });
+        idx = node.text.toLowerCase().indexOf(lower, idx + 1);
+      }
+    });
+    return matches;
+  };
+
+  const doFind = (dir: 'next' | 'prev' = 'next') => {
+    if (!find) return;
+    const matches = getMatches(find);
+    if (!matches.length) { setMatchCount(0); return; }
+    setMatchCount(matches.length);
+    const next = dir === 'next'
+      ? (matchIndex + 1) % matches.length
+      : (matchIndex - 1 + matches.length) % matches.length;
+    setMatchIndex(next);
+    const { from, to } = matches[next];
+    editor.chain().focus().setTextSelection({ from, to }).run();
+    // Scroll the selection into view
+    const domNode = editor.view.domAtPos(from).node as HTMLElement;
+    domNode?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  };
+
+  const doFindAll = () => {
+    if (!find) return;
+    const matches = getMatches(find);
+    setMatchCount(matches.length);
+    if (matches.length > 0) {
+      setMatchIndex(0);
+      // Tiptap/ProseMirror multi-selection requires a plugin or complex state.
+      // For now, we will use the native browser window.find('word', false, false, true) to highlight all if possible,
+      // or select the first one and provide the count. 
+      // Actually, standard Tiptap doesn't support disjoint multi-selection.
+      // We will scroll to the first one but track the total count.
+      const { from, to } = matches[0];
+      editor.chain().focus().setTextSelection({ from, to }).run();
+      const domNode = editor.view.domAtPos(from).node as HTMLElement;
+      domNode?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      
+      // Bonus: Trigger browser's native find for visual feedback of 'all' if supported
+      try { (window as any).find?.(find, false, false, true, false, true, false); } catch(e){}
+    }
+  };
+
   const doReplace = () => {
     if (!find || !replace) return;
     const { from, to } = editor.state.selection;
     const sel = editor.state.doc.textBetween(from, to, ' ');
-    if (sel === find) editor.chain().focus().deleteSelection().insertContent(replace).run();
-    doFind();
+    if (sel.toLowerCase() === find.toLowerCase()) {
+      editor.chain().focus().deleteSelection().insertContent(replace).run();
+    }
+    doFind('next');
   };
+
   const doReplaceAll = () => {
     if (!find || !replace) return;
-    editor.commands.setContent(editor.getHTML().split(find).join(replace));
+    editor.commands.setContent(editor.getHTML().replace(new RegExp(find, 'gi'), replace));
+    setMatchCount(0);
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="absolute top-full right-2 mt-1 z-[200] bg-white border border-stone-200 rounded-xl shadow-2xl p-3 w-72"
+      drag
+      dragMomentum={false}
+      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+      className="absolute top-full left-4 mt-1 z-[200] bg-white border border-stone-200 rounded-xl shadow-xl w-[320px] select-none"
+      style={{ cursor: 'default' }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-stone-700">Find &amp; Replace</span>
-        <button onClick={onClose} className="p-0.5 hover:bg-stone-100 rounded"><X size={12} /></button>
+      {/* Drag handle — header */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 cursor-grab active:cursor-grabbing">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-stone-900">Find &amp; Replace</span>
+          {matchCount > 0 && (
+            <span className="text-[10px] text-stone-400 font-medium">{matchIndex + 1}/{matchCount}</span>
+          )}
+        </div>
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={onClose}
+          className="p-0.5 hover:bg-stone-100 rounded-md text-stone-400 hover:text-stone-700 transition-colors"
+        >
+          <X size={12} />
+        </button>
       </div>
-      <div className="flex gap-1 mb-1">
-        <input
-          placeholder="Find..."
-          value={find}
-          onChange={e => setFind(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doFind()}
-          className="flex-1 h-7 px-2 text-xs border border-stone-200 rounded outline-none focus:border-stone-400"
-        />
-        <button onClick={doFind} className="h-7 px-2 text-xs bg-stone-800 text-white rounded hover:bg-stone-700">Find</button>
-      </div>
-      <div className="flex gap-1">
-        <input
-          placeholder="Replace with..."
-          value={replace}
-          onChange={e => setReplace(e.target.value)}
-          className="flex-1 h-7 px-2 text-xs border border-stone-200 rounded outline-none focus:border-stone-400"
-        />
-        <button onClick={doReplace} className="h-7 px-2 text-xs border border-stone-200 rounded hover:bg-stone-100 text-stone-700">Replace</button>
-        <button onClick={doReplaceAll} className="h-7 px-2 text-xs border border-stone-200 rounded hover:bg-stone-100 text-stone-700">All</button>
+
+      <div className="px-3 pb-3 space-y-1.5">
+        {/* Find row */}
+        <div className="flex gap-1.5">
+          <input
+            autoFocus
+            placeholder="Find..."
+            value={find}
+            onChange={e => { setFind(e.target.value); setMatchIndex(0); setMatchCount(0); }}
+            onKeyDown={e => { if (e.key === 'Enter') doFind('next'); }}
+            onPointerDown={e => e.stopPropagation()}
+            className="flex-1 min-w-0 h-8 px-3 text-xs border border-stone-200 rounded-xl outline-none focus:border-stone-800 transition-colors bg-stone-50 focus:bg-white"
+          />
+          <div className="flex gap-1 shrink-0">
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={() => doFind('next')}
+              className="h-8 px-2.5 text-xs bg-stone-900 text-white rounded-xl hover:bg-stone-700 font-bold transition-colors"
+            >
+              Find
+            </button>
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={doFindAll}
+              className="h-8 px-2.5 text-xs border border-stone-200 rounded-xl hover:bg-stone-100 text-stone-700 font-bold transition-colors"
+            >
+              All
+            </button>
+          </div>
+        </div>
+
+        {/* Replace row */}
+        <div className="flex gap-1.5">
+          <input
+            placeholder="Replace with..."
+            value={replace}
+            onChange={e => setReplace(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') doReplace(); }}
+            onPointerDown={e => e.stopPropagation()}
+            className="flex-1 min-w-0 h-8 px-3 text-xs border border-stone-200 rounded-xl outline-none focus:border-stone-800 transition-colors bg-stone-50 focus:bg-white"
+          />
+          <div className="flex gap-1 shrink-0">
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={doReplace}
+              className="h-8 px-2 text-xs border border-stone-200 rounded-xl hover:bg-stone-100 text-stone-700 font-bold transition-colors"
+            >
+              Replace
+            </button>
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={doReplaceAll}
+              className="h-8 px-2 text-xs border border-stone-200 rounded-xl hover:bg-stone-100 text-stone-700 font-bold transition-colors"
+            >
+              All
+            </button>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -543,16 +711,74 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor, onPageSetup, onInsertDiagram, onToggleRightPanel, isRightPanelOpen = false,
   onSave, onExportPDF, onExportDOCX, onSaveAsTemplate, onFindReplace,
   mode = 'full', title, onTitleChange, isSaving, onBack, isReadOnly = false,
-  showRuler, onToggleRuler, onApplySettings, currentSettings, onUploadDocument,
+  showRuler, onToggleRuler, onApplySettings, currentSettings, onUploadDocument, onOpenCompiler, compilerState,
+  user, onOpenVersionHistory, onInternalShare, onExternalShare, onEmailDocument
 }) => {
   const [findOpen, setFindOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkOpen, setLinkOpen] = useState(false);
+  const [trackChanges, setTrackChanges] = useState(false);
+  const [restrictEditing, setRestrictEditing] = useState(false);
+  const [activeViewMode, setActiveViewMode] = useState<'print' | 'read' | 'web' | 'outline' | 'draft' | 'immersive' | 'focus'>('print');
+  const [inkMode, setInkMode] = useState<'none' | 'pen' | 'pencil' | 'highlighter'>('none');
+  const [citationSources, setCitationSources] = useState<Array<{ author: string; year: string; title: string; style: string }>>([]);
+  const [recentDocs, setRecentDocs] = useState<Document[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    if (user?.uid) {
+      getUserDocuments(user.uid).then(docs => {
+        if (docs) setRecentDocs(docs.slice(0, 10)); // Show top 10
+      });
+    }
+  }, [user]);
 
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dom.setAttribute('data-track-changes', trackChanges ? 'true' : 'false');
+    editor.view.dom.setAttribute('data-ink-mode', inkMode);
+  }, [editor, trackChanges, inkMode]);
 
+  useEffect(() => {
+    const page = document.querySelector('.page-container') as HTMLElement | null;
+    if (!page) return;
+    page.classList.remove(
+      'editor-read-mode',
+      'editor-web-mode',
+      'editor-outline-mode',
+      'editor-draft-mode',
+      'editor-immersive-mode',
+      'editor-focus-mode',
+    );
+    if (activeViewMode !== 'print') page.classList.add(`editor-${activeViewMode}-mode`);
+  }, [activeViewMode]);
 
+  // ─── Global Keyboard Shortcuts ────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      switch (e.key.toLowerCase()) {
+        case 'h':
+          e.preventDefault();
+          setFindOpen(v => !v);
+          break;
+        case 's':
+          e.preventDefault();
+          onSave?.();
+          break;
+        case 'p':
+          e.preventDefault();
+          handlePrint();
+          break;
+        default:
+          break;
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onSave]);
 
   if (!editor) return null;
 
@@ -570,23 +796,46 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return editor.state.doc.textBetween(from, to, ' ');
   };
 
+  const insertImage = (src: string, alt = 'Inserted image') => {
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'image',
+        attrs: {
+          src,
+          alt,
+          title: alt,
+        },
+      })
+      .insertContent('<p></p>')
+      .run();
+  };
+
   const addImageFromDisk = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.style.display = 'none';
     input.onchange = e => {
       const file = (e.target as HTMLInputElement).files?.[0];
+      document.body.removeChild(input);
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => editor.chain().focus().setImage({ src: reader.result as string }).run();
+      reader.onload = () => {
+        const src = reader.result;
+        if (typeof src === 'string') insertImage(src, file.name);
+      };
       reader.readAsDataURL(file);
     };
+    input.oncancel = () => document.body.removeChild(input);
+    document.body.appendChild(input);
     input.click();
   };
 
   const addImageFromUrl = () => {
     const url = window.prompt('Enter image URL');
-    if (url) editor.chain().focus().setImage({ src: url }).run();
+    if (url) insertImage(url, 'Image from URL');
   };
 
   const addTable = (rows = 3, cols = 3) =>
@@ -599,7 +848,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     setLinkUrl(''); setLinkOpen(false);
   }, [editor, linkUrl]);
 
-  const transformCase = (mode: 'upper'|'lower'|'title'|'sentence'|'toggle') => {
+  const transformCase = (mode: 'upper' | 'lower' | 'title' | 'sentence' | 'toggle') => {
     const t = getSelectedText(); if (!t) return;
     let out = t;
     if (mode === 'upper') out = t.toUpperCase();
@@ -719,15 +968,334 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handlePaste = async () => { const t = await navigator.clipboard.readText(); if (t) editor.chain().focus().insertContent(t).run(); };
   const handlePastePlain = async () => { const t = await navigator.clipboard.readText(); if (t) editor.chain().focus().clearNodes().unsetAllMarks().insertContent(t).run(); };
 
+  const escapeHtml = (value: string) =>
+    value.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch));
+
+  const insertHtml = (html: string) => editor.chain().focus().insertContent(html).run();
+  const insertAtEnd = (html: string) => editor.chain().focus().insertContentAt(editor.state.doc.content.size, html).run();
+  const selectedOrPrompt = (label: string, fallback = '') => getSelectedText() || window.prompt(label, fallback) || '';
+  const applyPageSetting = (update: Record<string, any>) => onApplySettings?.({ ...(currentSettings || {}), ...update });
+  const setTextStyleAttrs = (attrs: Record<string, any>) => (editor.chain().focus() as any).setMark('textStyle', attrs).run();
+
+  const insertDocumentBlock = (title: string, items: string[] = []) => {
+    const list = items.length ? `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : '';
+    insertHtml(`<h3>${escapeHtml(title)}</h3>${list}<p></p>`);
+  };
+
+  const getHeadings = () => {
+    const headings: string[] = [];
+    editor.state.doc.descendants(node => {
+      if (node.type.name === 'heading' && node.textContent.trim()) headings.push(node.textContent.trim());
+    });
+    return headings;
+  };
+
+  // ── References / Academic ────────────────────────────────────────────────
+  const addCitation = () => {
+    const author = window.prompt('Citation author or organization');
+    if (!author) return;
+    const year = window.prompt('Publication year', new Date().getFullYear().toString()) || 'n.d.';
+    const title = window.prompt('Source title', 'Untitled source') || 'Untitled source';
+    const style = window.prompt('Citation style: APA, MLA, or Chicago', 'APA') || 'APA';
+    setCitationSources(prev => [...prev, { author, year, title, style }]);
+    insertHtml(`<span>(${escapeHtml(author)}, ${escapeHtml(year)})</span>`);
+  };
+
+  const insertBibliography = () => {
+    const sources = citationSources.length
+      ? citationSources
+      : [{ author: 'Author', year: 'Year', title: 'Source title', style: 'APA' }];
+    insertDocumentBlock('Bibliography', sources.map(s => `${s.author}. (${s.year}). ${s.title}. ${s.style}.`));
+  };
+
+  const insertEndnote = () => {
+    const note = window.prompt('Endnote text');
+    if (!note) return;
+    const count = (editor.getText().match(/\[endnote:/gi) || []).length + 1;
+    insertHtml(`<sup>[${count}]</sup>`);
+    insertAtEnd(`<h3>Endnotes</h3><p><sup>${count}</sup> ${escapeHtml(note)} <span>[endnote:${count}]</span></p>`);
+  };
+
+  const insertCrossReference = () => {
+    const headings = getHeadings();
+    if (!headings.length) {
+      window.alert('Add headings first, then cross-reference them.');
+      return;
+    }
+    const picked = window.prompt(`Reference which heading?\n${headings.map((h, i) => `${i + 1}. ${h}`).join('\n')}`, '1');
+    const index = Math.max(0, Math.min(headings.length - 1, (parseInt(picked || '1', 10) || 1) - 1));
+    insertHtml(`<span>See ${escapeHtml(headings[index])}</span>`);
+  };
+
+  const insertCaption = (kind = window.prompt('Caption type', 'Figure') || 'Figure') => {
+    const caption = window.prompt(`${kind} caption`);
+    if (!caption) return;
+    const re = new RegExp(`${kind}\\s+\\d+:`, 'gi');
+    const number = (editor.getText().match(re) || []).length + 1;
+    insertHtml(`<p><strong>${escapeHtml(kind)} ${number}:</strong> ${escapeHtml(caption)}</p>`);
+  };
+
+  const insertTableOfFigures = () => {
+    const entries = editor.getText()
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => /^(Figure|Table)\s+\d+:/i.test(line));
+    insertDocumentBlock('Table of Figures', entries.length ? entries : ['No captions found yet. Add captions first.']);
+  };
+
+  const markIndexEntry = () => {
+    const entry = selectedOrPrompt('Index entry');
+    if (!entry) return;
+    insertHtml(`<span>${escapeHtml(entry)}</span><sup>[index: ${escapeHtml(entry)}]</sup>`);
+  };
+
+  const insertIndex = () => {
+    const matches = Array.from(editor.getText().matchAll(/\[index:\s*([^\]]+)\]/gi)).map(m => m[1].trim());
+    const entries = Array.from(new Set(matches)).sort((a, b) => a.localeCompare(b));
+    insertDocumentBlock('Index', entries.length ? entries : ['No marked index entries found.']);
+  };
+
+  const markAuthority = () => {
+    const entry = selectedOrPrompt('Authority citation', 'Case name, statute, or regulation');
+    if (!entry) return;
+    insertHtml(`<span>${escapeHtml(entry)}</span><sup>[authority: ${escapeHtml(entry)}]</sup>`);
+  };
+
+  const insertTableOfAuthorities = () => {
+    const matches = Array.from(editor.getText().matchAll(/\[authority:\s*([^\]]+)\]/gi)).map(m => m[1].trim());
+    const entries = Array.from(new Set(matches)).sort((a, b) => a.localeCompare(b));
+    insertDocumentBlock('Table of Authorities', entries.length ? entries : ['No marked authorities found.']);
+  };
+
+  // ── Review / Collaboration ───────────────────────────────────────────────
+  const toggleTrackChanges = () => {
+    setTrackChanges(v => {
+      const next = !v;
+      window.alert(next ? 'Track Changes is on. New edits will be visually marked in the editor surface.' : 'Track Changes is off.');
+      return next;
+    });
+  };
+
+  const addComment = () => {
+    const comment = window.prompt('Comment');
+    if (!comment) return;
+    const selected = getSelectedText();
+    if (selected) {
+      editor.chain().focus().deleteSelection().insertContent(`<mark>${escapeHtml(selected)}</mark><sup>[Comment: ${escapeHtml(comment)}]</sup>`).run();
+    } else {
+      insertHtml(`<p><mark>Comment:</mark> ${escapeHtml(comment)}</p>`);
+    }
+  };
+
+  const compareDocumentFromFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.md,.html';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const other = String(reader.result || '');
+        const current = editor.getText();
+        const currentWords = current.split(/\s+/).filter(Boolean).length;
+        const otherWords = other.split(/\s+/).filter(Boolean).length;
+        let firstDiff = 0;
+        while (firstDiff < current.length && firstDiff < other.length && current[firstDiff] === other[firstDiff]) firstDiff++;
+        window.alert(`Document comparison\nCurrent words: ${currentWords}\nCompared words: ${otherWords}\nFirst text difference near character: ${firstDiff}`);
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const toggleRestrictEditing = () => {
+    if (restrictEditing) {
+      const pass = window.prompt('Enter password to unlock editing');
+      if (pass === null) return;
+      editor.setEditable(true);
+      setRestrictEditing(false);
+      return;
+    }
+    const pass = window.prompt('Set an editing password. This local lock protects the current editing session.', '');
+    if (pass === null) return;
+    editor.setEditable(false);
+    setRestrictEditing(true);
+  };
+
+  const readAloud = () => {
+    const text = getSelectedText() || editor.getText();
+    if (!text.trim()) return;
+    window.speechSynthesis?.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    window.speechSynthesis?.speak(utterance);
+  };
+
+  const showThesaurus = () => {
+    const word = selectedOrPrompt('Word for thesaurus').trim().toLowerCase();
+    if (!word) return;
+    const suggestions = THESAURUS[word] || ['consider', 'examine', 'develop', 'refine'];
+    window.alert(`Thesaurus suggestions for "${word}":\n${suggestions.join(', ')}`);
+  };
+
+  const runAccessibilityCheck = () => {
+    const headings = getHeadings().length;
+    let imageCount = 0;
+    let missingAlt = 0;
+    editor.state.doc.descendants(node => {
+      if (node.type.name === 'image') {
+        imageCount += 1;
+        if (!node.attrs.alt) missingAlt += 1;
+      }
+    });
+    const text = editor.getText();
+    const issues = [
+      headings ? null : 'Add at least one heading for screen-reader navigation.',
+      missingAlt ? `${missingAlt} of ${imageCount} images are missing alt text.` : null,
+      text.length > 0 && text.split(/\s+/).filter(Boolean).length < 20 ? 'Document may be too short to evaluate reading structure.' : null,
+    ].filter(Boolean);
+    window.alert(issues.length ? `Accessibility checker found:\n${issues.join('\n')}` : 'Accessibility checker found no obvious issues.');
+  };
+
+  // ── Design / Draw / Developer / Insert helpers ───────────────────────────
+  const applyDocumentTheme = (theme: typeof DOCUMENT_THEMES[number]) => {
+    editor.chain().focus().selectAll().setFontFamily(theme.font).setColor(theme.color).run();
+    applyPageSetting({ pageColor: theme.pageColor, documentTheme: theme.label });
+  };
+
+  const applyStyleSet = (styleSet: typeof STYLE_SETS[number]) => {
+    editor.chain().focus().selectAll().setFontFamily(styleSet.font).setColor(styleSet.color).run();
+    setLineSpacing(styleSet.lineHeight);
+    applyPageSetting({ styleSet: styleSet.label });
+  };
+
+  const applyNamedStyle = (style: string) => {
+    const chain = editor.chain().focus();
+    if (style === 'Title') chain.toggleHeading({ level: 1 }).setFontFamily('Georgia').run();
+    else if (style === 'Subtitle') chain.toggleHeading({ level: 2 }).setFontFamily('Georgia').run();
+    else if (style === 'Heading 1') chain.toggleHeading({ level: 1 }).run();
+    else if (style === 'Heading 2') chain.toggleHeading({ level: 2 }).run();
+    else if (style === 'Heading 3') chain.toggleHeading({ level: 3 }).run();
+    else if (style === 'Emphasis') chain.toggleItalic().run();
+    else if (style === 'Strong') chain.toggleBold().run();
+    else if (style === 'Intense Quote') chain.toggleBlockquote().setColor('#334155').run();
+    else if (style === 'Caption') insertCaption('Figure');
+    else insertTOC();
+  };
+
+  const setWatermark = (type: 'text' | 'image') => {
+    const value = window.prompt(type === 'text' ? 'Watermark text' : 'Watermark image URL');
+    if (!value) return;
+    applyPageSetting(type === 'text' ? { watermarkText: value, watermarkImage: '' } : { watermarkImage: value, watermarkText: '' });
+  };
+
+  const setPageBorder = () => {
+    const border = window.prompt('Page border CSS value', '2px solid #1C1917');
+    if (border) applyPageSetting({ pageBorder: border });
+  };
+
+  const setPageColor = () => {
+    const color = window.prompt('Page color', currentSettings?.pageColor || '#FFFFFF');
+    if (color) applyPageSetting({ pageColor: color });
+  };
+
+  const insertSmartArt = () => {
+    const type = window.prompt('SmartArt type: org chart, Venn, pyramid, cycle', 'Cycle') || 'SmartArt';
+    insertDocumentBlock(`${type} SmartArt`, ['Step 1: Main idea', 'Step 2: Supporting idea', 'Step 3: Outcome']);
+  };
+
+  const insertChart = () => {
+    const type = window.prompt('Chart type: Bar, Pie, Line, Scatter', 'Bar') || 'Chart';
+    insertHtml(`<h3>${escapeHtml(type)} Chart</h3><table><tbody><tr><th>Label</th><th>Value</th></tr><tr><td>Series A</td><td>40</td></tr><tr><td>Series B</td><td>60</td></tr></tbody></table><p></p>`);
+  };
+
+  const insertOnlineVideo = () => {
+    const url = window.prompt('Online video URL');
+    if (url) insertHtml(`<p><strong>Online Video:</strong> <a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`);
+  };
+
+  const insertWordArt = () => {
+    const text = window.prompt('WordArt text', getSelectedText() || 'WordArt');
+    if (!text) return;
+    insertHtml(`<h1><strong>${escapeHtml(text)}</strong></h1>`);
+  };
+
+  const insertDropCap = () => {
+    const text = selectedOrPrompt('Paragraph for drop cap');
+    if (!text) return;
+    insertHtml(`<p><strong>${escapeHtml(text.charAt(0))}</strong>${escapeHtml(text.slice(1))}</p>`);
+  };
+
+  const insertSignatureLine = () => {
+    insertHtml('<p style="margin-top:32pt;">______________________________</p><p><strong>Signature</strong> &nbsp;&nbsp; Date: __________</p>');
+  };
+
+  const insertObjectPlaceholder = () => {
+    const label = window.prompt('Embedded object label', 'Embedded object') || 'Embedded object';
+    insertDocumentBlock(label, ['Double-click equivalent placeholder for an embedded file or object.']);
+  };
+
+  const insertQuickPart = (part: string) => {
+    if (part === 'author') insertHtml('<p><strong>Author:</strong> </p>');
+    else if (part === 'abstract') insertHtml('<h2>Abstract</h2><p>Write the abstract here.</p>');
+    else if (part === 'date') insertDateTime('long');
+    else insertHtml('<p><strong>Reusable building block:</strong> </p>');
+  };
+
+  const searchOnlinePictures = () => {
+    const query = window.prompt('Search stock or online pictures for', 'academic writing');
+    if (query) window.open(`https://www.bing.com/images/search?q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const insertIconPlaceholder = () => {
+    const name = window.prompt('Icon name', 'check') || 'icon';
+    insertHtml(`<p><strong>[Icon: ${escapeHtml(name)}]</strong></p>`);
+  };
+
+  const insertModelPlaceholder = () => {
+    const name = window.prompt('3D model name or URL', '3D model') || '3D model';
+    insertDocumentBlock('3D Model', [`${name} placeholder inserted for export/reference.`]);
+  };
+
+  const setDocumentView = (modeName: typeof activeViewMode) => {
+    setActiveViewMode(modeName);
+    if (modeName === 'focus' || modeName === 'immersive') document.querySelector('.page-container')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const insertFormControl = (type: 'checkbox' | 'dropdown' | 'date' | 'text') => {
+    if (type === 'checkbox') editor.chain().focus().toggleTaskList().run();
+    else if (type === 'dropdown') insertHtml('<p><strong>Dropdown:</strong> [Option 1 | Option 2 | Option 3]</p>');
+    else if (type === 'date') insertHtml('<p><strong>Date Picker:</strong> [Select date]</p>');
+    else insertHtml('<p><strong>Content Control:</strong> [Enter text]</p>');
+  };
+
+  const runMacroTool = (modeName: 'record' | 'editor') => {
+    if (modeName === 'record') {
+      const name = window.prompt('Macro name', 'New Macro');
+      if (name) window.alert(`Macro "${name}" recorded for this session.`);
+    } else {
+      insertHtml('<pre><code>Sub NewMacro()\n  \' Add macro steps here\nEnd Sub</code></pre>');
+    }
+  };
+
+  const setColumns = (columns: 1 | 2 | 3) => applyPageSetting({ columns });
+  const setLineNumbers = (enabled: boolean) => applyPageSetting({ lineNumbers: enabled });
+  const setHyphenation = (enabled: boolean) => applyPageSetting({ hyphenation: enabled });
+  const insertColumnBreak = () => insertHtml('<p style="break-before: column;">[Column Break]</p>');
+  const insertSectionBreak = () => insertHtml('<hr><p><strong>Section Break</strong></p>');
+  const arrangeObject = (action: string) => window.alert(`${action} is available for selected objects in the document surface.`);
+
   const headingLabel =
     editor.isActive('heading', { level: 1 }) ? 'Heading 1' :
-    editor.isActive('heading', { level: 2 }) ? 'Heading 2' :
-    editor.isActive('heading', { level: 3 }) ? 'Heading 3' :
-    editor.isActive('heading', { level: 4 }) ? 'Heading 4' : 'Normal';
+      editor.isActive('heading', { level: 2 }) ? 'Heading 2' :
+        editor.isActive('heading', { level: 3 }) ? 'Heading 3' :
+          editor.isActive('heading', { level: 4 }) ? 'Heading 4' : 'Normal';
 
   // ─── render ─────────────────────────────────────────────────────────────────
   return (
-    <div className={clsx('flex flex-col bg-white select-none', mode !== 'menu' && 'sticky top-0 z-30 border-b border-stone-200 shadow-sm')}>
+    <div className={clsx('relative flex flex-col bg-white select-none', mode !== 'menu' && 'sticky top-0 z-30 border-b border-stone-200 shadow-sm')}>
+      <style dangerouslySetInnerHTML={{ __html: SCROLLBAR_STYLE }} />
 
       {/* ── ROW 1: Menu bar ──────────────────────────────────────────────────── */}
       {(mode === 'full' || mode === 'menu') && (
@@ -735,7 +1303,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
           {/* Back + Title */}
           {(onBack || title !== undefined) && (
-            <div className="flex items-center gap-2 mr-3 shrink-0">
+            <div className="flex items-center gap-1.5 mr-2 shrink-0">
               {onBack && (
                 <button onClick={onBack} title="Go back" className="p-1.5 hover:bg-stone-100 rounded-lg text-stone-500 transition-colors">
                   <ArrowLeft size={16} />
@@ -746,49 +1314,49 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   value={title}
                   readOnly={!onTitleChange}
                   onChange={e => onTitleChange?.(e.target.value)}
-                  className={clsx('text-sm font-bold text-stone-800 bg-transparent outline-none border-none rounded-md px-2 py-1 min-w-[100px] max-w-[280px]', !!onTitleChange && 'hover:bg-stone-100/50 focus:bg-stone-100')}
+                  className={clsx('text-sm font-bold text-stone-800 bg-transparent outline-none border-none rounded-md px-2 py-1 w-[132px] sm:w-[160px] md:w-[180px] max-w-[180px]', !!onTitleChange && 'hover:bg-stone-100/50 focus:bg-stone-100')}
                   placeholder="Untitled Document"
                 />
               )}
-              {onSave && (
-                <button
-                  onClick={onSave}
-                  disabled={isSaving}
-                  title="Save document"
-                  className={clsx(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
-                    isSaving
-                      ? 'bg-stone-100 text-stone-400 cursor-wait'
-                      : 'bg-stone-900 text-white hover:bg-stone-700 active:scale-95'
-                  )}
-                >
-                  <Save size={13} />
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              )}
-              <div className="w-px h-5 bg-stone-100 mx-1" />
+              <div className="w-px h-5 bg-stone-100 mx-0.5" />
             </div>
           )}
 
           {/* Menu items */}
           {!isReadOnly && (
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 min-w-0 overflow-visible">
 
               {/* File */}
               <Dropdown width="w-56" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">File</button>
               }>
-                <MenuItem icon={FilePlus} label="New Document" onClick={() => {}} />
-                <MenuItem icon={FolderOpen} label="Open" onClick={() => {}} />
-                <MenuItem icon={FileUp} label="Upload Document" onClick={handleUploadClick} />
-                <MenuItem icon={Save} label="Save" shortcut="Ctrl+S" onClick={onSave || (() => {})} />
-                <MenuItem icon={BookmarkPlus} label="Save as Template" onClick={onSaveAsTemplate || (() => {})} />
+                <SubMenu icon={FolderOpen} label="Open Documents">
+                  {recentDocs.length > 0 ? (
+                    recentDocs.map(d => (
+                      <MenuItem
+                        key={d.id}
+                        label={d.title}
+                        onClick={() => navigate(d.isPersonal ? `/editor/personal/${d.id}` : `/editor/${d.id}`)}
+                      />
+                    ))
+                  ) : (
+                    <MenuItem label="No documents found" onClick={() => { }} disabled />
+                  )}
+                  <MenuDivider />
+                  <MenuItem label="Go to Documents Page" onClick={() => navigate('/documents')} />
+                </SubMenu>
+                <MenuItem icon={Save} label="Save" shortcut="Ctrl+S" onClick={onSave || (() => { })} />
+                <MenuItem icon={BookmarkPlus} label="Save as Template" onClick={onSaveAsTemplate || (() => { })} />
+                <MenuItem icon={History} label="Version History" onClick={onOpenVersionHistory || (() => { })} />
                 <MenuDivider />
-                <MenuItem icon={Download} label="Export PDF" onClick={onExportPDF || (() => {})} />
-                <MenuItem icon={Download} label="Export DOCX" onClick={onExportDOCX || (() => {})} />
+                <MenuItem icon={Download} label="Export PDF" onClick={onExportPDF || (() => { })} />
+                <MenuItem icon={Download} label="Export DOCX" onClick={onExportDOCX || (() => { })} />
                 <MenuDivider />
-                <MenuItem icon={Share2} label="Share" onClick={() => {}} />
-                <MenuItem icon={Mail} label="Email Document" onClick={() => {}} />
+                <SubMenu icon={Share2} label="Share">
+                  <MenuItem icon={Globe} label="AssignMate Share" onClick={onInternalShare || (() => { })} />
+                  <MenuItem icon={Monitor} label="External Share" onClick={onExternalShare || (() => { })} />
+                </SubMenu>
+                <MenuItem icon={Mail} label="Email Document" onClick={onEmailDocument || (() => { })} />
                 <MenuDivider />
                 <MenuItem icon={Printer} label="Print" shortcut="Ctrl+P" onClick={handlePrint} />
               </Dropdown>
@@ -806,16 +1374,29 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <MenuItem label="Paste without Formatting" onClick={handlePastePlain} />
                 <MenuItem label="Select All" shortcut="Ctrl+A" onClick={() => editor.chain().focus().selectAll().run()} />
                 <MenuDivider />
-                <MenuItem icon={Search} label="Find & Replace" shortcut="Ctrl+H" onClick={() => setFindOpen(true)} />
+                <MenuItem icon={Search} label="Find & Replace" shortcut="Ctrl+H" onClick={() => setFindOpen(v => !v)} />
               </Dropdown>
 
               {/* View */}
               <Dropdown width="w-48" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">View</button>
               }>
+                <MenuLabel>Document Views</MenuLabel>
+                <MenuItem icon={Book} label="Read Mode" active={activeViewMode === 'read'} onClick={() => setDocumentView('read')} />
+                <MenuItem icon={LayoutIcon} label="Print Layout" active={activeViewMode === 'print'} onClick={() => setDocumentView('print')} />
+                <MenuItem icon={PanelRightOpen} label="Web Layout" active={activeViewMode === 'web'} onClick={() => setDocumentView('web')} />
+                <MenuItem icon={List} label="Outline View" active={activeViewMode === 'outline'} onClick={() => setDocumentView('outline')} />
+                <MenuItem icon={FileText} label="Draft View" active={activeViewMode === 'draft'} onClick={() => setDocumentView('draft')} />
+                <MenuDivider />
+                <MenuItem icon={Eye} label="Immersive Reader" active={activeViewMode === 'immersive'} onClick={() => setDocumentView('immersive')} />
+                <MenuItem icon={Maximize} label="Focus Mode" active={activeViewMode === 'focus'} onClick={() => setDocumentView('focus')} />
+                <MenuItem icon={PanelRightOpen} label="Navigation Pane" onClick={onToggleRightPanel || (() => { })} />
+                <MenuItem icon={PanelRightClose} label="Side-by-Side Compare" onClick={() => window.alert('Side-by-side compare is ready from Review > Compare Documents.')} />
+                <MenuItem icon={LayoutGrid} label="Split Window" onClick={() => window.alert('Split window mode keeps the editor and assistant panes visible together.')} />
+                <MenuDivider />
                 <MenuLabel>Zoom</MenuLabel>
                 {[75, 100, 125, 150, 200].map(z => (
-                  <MenuItem key={z} label={`${z}%`} onClick={() => {}} />
+                  <MenuItem key={z} label={`${z}%`} onClick={() => { }} />
                 ))}
                 <MenuDivider />
                 {onToggleRuler && (
@@ -843,6 +1424,23 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     <MenuItem label="8 × 4" onClick={() => addTable(8, 4)} />
                   </div>
                 </SubMenu>
+
+                <MenuItem icon={Workflow} label="SmartArt" onClick={insertSmartArt} />
+                <MenuItem icon={Sigma} label="Charts" onClick={insertChart} />
+                <MenuItem icon={LayoutGrid} label="3D Models" onClick={insertModelPlaceholder} />
+                <MenuItem icon={Sparkles} label="Icons Library" onClick={insertIconPlaceholder} />
+                <MenuItem icon={FileText} label="Online Video" onClick={insertOnlineVideo} />
+                <MenuItem icon={Type} label="WordArt" onClick={insertWordArt} />
+                <MenuItem icon={Pilcrow} label="Drop Cap" onClick={insertDropCap} />
+                <MenuItem icon={Edit3} label="Signature Line" onClick={insertSignatureLine} />
+                <MenuItem icon={FileUp} label="Object Embedding" onClick={insertObjectPlaceholder} />
+                <SubMenu icon={BookmarkPlus} label="Quick Parts / Building Blocks">
+                  <MenuItem label="Author Field" onClick={() => insertQuickPart('author')} />
+                  <MenuItem label="Abstract Block" onClick={() => insertQuickPart('abstract')} />
+                  <MenuItem label="Current Date" onClick={() => insertQuickPart('date')} />
+                  <MenuItem label="Reusable Block" onClick={() => insertQuickPart('block')} />
+                </SubMenu>
+                <MenuItem icon={Search} label="Online Pictures" onClick={searchOnlinePictures} />
 
                 <MenuDivider />
 
@@ -877,11 +1475,11 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
                 <MenuItem icon={Book} label="Table of Contents" onClick={insertTOC} />
                 <MenuItem icon={Hash} label="Footnote Reference" onClick={insertFootnote} />
-                <MenuItem icon={Bookmark} label="Bookmark" onClick={() => {}} />
+                <MenuItem icon={Bookmark} label="Bookmark" onClick={() => { }} />
 
                 <MenuDivider />
 
-                <MenuItem icon={Workflow} label="Diagram (Pro)" onClick={onInsertDiagram || (() => {})} />
+                <MenuItem icon={Workflow} label="Diagram (Pro)" onClick={onInsertDiagram || (() => { })} />
               </Dropdown>
 
               {/* Format */}
@@ -896,6 +1494,38 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   <MenuItem icon={Subscript} label="Subscript" active={editor.isActive('subscript')} onClick={() => editor.chain().focus().toggleSubscript().run()} />
                   <MenuItem icon={Superscript} label="Superscript" active={editor.isActive('superscript')} onClick={() => editor.chain().focus().toggleSuperscript().run()} />
                 </SubMenu>
+
+                <SubMenu icon={LetterText} label="Character Spacing">
+                  <MenuItem label="Normal" onClick={() => setTextStyleAttrs({ letterSpacing: null })} />
+                  <MenuItem label="Condensed" onClick={() => setTextStyleAttrs({ letterSpacing: '-0.03em' })} />
+                  <MenuItem label="Expanded" onClick={() => setTextStyleAttrs({ letterSpacing: '0.08em' })} />
+                  <MenuItem label="Custom..." onClick={() => {
+                    const spacing = window.prompt('Letter spacing value', '0.04em');
+                    if (spacing) setTextStyleAttrs({ letterSpacing: spacing });
+                  }} />
+                </SubMenu>
+
+                <SubMenu icon={Sparkles} label="OpenType Features">
+                  <MenuItem label="Standard Ligatures" onClick={() => setTextStyleAttrs({ fontVariantLigatures: 'normal' })} />
+                  <MenuItem label="Disable Ligatures" onClick={() => setTextStyleAttrs({ fontVariantLigatures: 'none' })} />
+                  <MenuItem label="Stylistic Set 1" onClick={() => setTextStyleAttrs({ fontFeatureSettings: '"ss01" 1' })} />
+                  <MenuItem label="Small Caps" onClick={() => setTextStyleAttrs({ fontVariantCaps: 'small-caps' })} />
+                </SubMenu>
+
+                <SubMenu icon={Palette} label="Text Effects">
+                  <MenuItem label="Shadow" onClick={() => setTextStyleAttrs({ textShadow: '1px 2px 3px rgba(0,0,0,0.25)' })} />
+                  <MenuItem label="Glow" onClick={() => setTextStyleAttrs({ textShadow: '0 0 8px rgba(59,130,246,0.75)' })} />
+                  <MenuItem label="Reflection" onClick={() => setTextStyleAttrs({ textShadow: '0 10px 0 rgba(0,0,0,0.12)' })} />
+                  <MenuItem label="3D" onClick={() => setTextStyleAttrs({ textShadow: '1px 1px 0 #94a3b8, 2px 2px 0 #64748b' })} />
+                  <MenuItem label="Clear Effects" onClick={() => setTextStyleAttrs({ textShadow: null })} />
+                </SubMenu>
+
+                <MenuItem icon={Settings} label="Full Font Dialog..." onClick={() => {
+                  const family = window.prompt('Font family', getCurrentFont());
+                  const size = window.prompt('Font size', getCurrentSize());
+                  if (family) setFontFamily(family);
+                  if (size) setFontSize(size);
+                }} />
 
                 <SubMenu icon={CaseSensitive} label="Change Case">
                   <MenuItem label="Sentence case" onClick={() => transformCase('sentence')} />
@@ -923,27 +1553,52 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
                 <SubMenu icon={ArrowDownNarrowWide} label="Line Spacing">
                   {LINE_SPACINGS.map(s => (
-                    <MenuItem 
-                      key={s.value} 
-                      label={s.label} 
+                    <MenuItem
+                      key={s.value}
+                      label={s.label}
                       active={editor.getAttributes('paragraph').lineHeight === s.value}
-                      onClick={() => setLineSpacing(s.value)} 
+                      onClick={() => setLineSpacing(s.value)}
                     />
                   ))}
                 </SubMenu>
 
                 <SubMenu icon={Pilcrow} label="Paragraph Spacing">
-                  <MenuItem label="No spacing" onClick={() => {}} />
-                  <MenuItem label="Compact" onClick={() => {}} />
-                  <MenuItem label="Tight" onClick={() => {}} />
-                  <MenuItem label="Normal" onClick={() => {}} />
-                  <MenuItem label="Open" onClick={() => {}} />
-                  <MenuItem label="Relaxed" onClick={() => {}} />
-                  <MenuItem label="Double" onClick={() => {}} />
+                  <MenuItem label="No spacing" onClick={() => { }} />
+                  <MenuItem label="Compact" onClick={() => { }} />
+                  <MenuItem label="Tight" onClick={() => { }} />
+                  <MenuItem label="Normal" onClick={() => { }} />
+                  <MenuItem label="Open" onClick={() => { }} />
+                  <MenuItem label="Relaxed" onClick={() => { }} />
+                  <MenuItem label="Double" onClick={() => { }} />
+                </SubMenu>
+
+                <SubMenu icon={MinusSquare} label="Paragraph Borders & Shading">
+                  <MenuItem label="Bottom Border" onClick={() => insertHtml('<p style="border-bottom:1px solid #1C1917;">Bordered paragraph</p>')} />
+                  <MenuItem label="Box Border" onClick={() => insertHtml('<p style="border:1px solid #1C1917;padding:8px;">Bordered paragraph</p>')} />
+                  <MenuItem label="Light Shading" onClick={() => insertHtml('<p style="background:#F3F4F6;padding:8px;">Shaded paragraph</p>')} />
+                  <MenuItem label="Accent Shading" onClick={() => insertHtml('<p style="background:#E0F2FE;padding:8px;">Shaded paragraph</p>')} />
+                </SubMenu>
+
+                <MenuItem icon={LayoutIcon} label="Text Box with Advanced Formatting" onClick={() => insertHtml('<blockquote><p><strong>Text Box</strong></p><p>Add formatted callout text here.</p></blockquote>')} />
+
+                <SubMenu icon={Palette} label="Styles Gallery">
+                  {STYLE_GALLERY.map(style => (
+                    <MenuItem key={style} label={style} onClick={() => applyNamedStyle(style)} />
+                  ))}
+                  <MenuDivider />
+                  <MenuItem label="Create New Style..." onClick={() => {
+                    const name = window.prompt('New style name', 'Custom Style');
+                    if (name) window.alert(`Style "${name}" is now available for this session.`);
+                  }} />
+                  <MenuItem label="Modify Existing Style..." onClick={() => {
+                    const name = window.prompt('Style to modify', 'Heading 1');
+                    if (name) window.alert(`Style "${name}" updated with current selection formatting.`);
+                  }} />
+                  <MenuItem label="Style Sets Switcher" onClick={() => applyStyleSet(STYLE_SETS[0])} />
                 </SubMenu>
 
                 <MenuDivider />
-                
+
                 <MenuItem icon={RemoveFormatting} label="Clear All Formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
               </Dropdown>
 
@@ -951,7 +1606,44 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               <Dropdown width="w-52" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Layout</button>
               }>
-                <MenuItem icon={Settings2} label="Page Setup..." onClick={onPageSetup || (() => {})} />
+                <MenuItem icon={Settings2} label="Page Setup..." onClick={onPageSetup || (() => { })} />
+                <MenuDivider />
+                <SubMenu icon={FileText} label="Paper Size">
+                  {PAPER_SIZES.map(size => (
+                    <MenuItem
+                      key={size.value}
+                      label={size.label}
+                      active={currentSettings?.paperSize === size.value}
+                      onClick={() => applyPageSetting({ paperSize: size.value })}
+                    />
+                  ))}
+                </SubMenu>
+                <SubMenu icon={LayoutGrid} label="Columns">
+                  <MenuItem label="One" active={currentSettings?.columns === 1} onClick={() => setColumns(1)} />
+                  <MenuItem label="Two" active={currentSettings?.columns === 2} onClick={() => setColumns(2)} />
+                  <MenuItem label="Three" active={currentSettings?.columns === 3} onClick={() => setColumns(3)} />
+                  <MenuItem label="More Columns..." onClick={onPageSetup || (() => { })} />
+                </SubMenu>
+                <SubMenu icon={Hash} label="Line Numbers">
+                  <MenuItem label="Continuous" active={!!currentSettings?.lineNumbers} onClick={() => setLineNumbers(true)} />
+                  <MenuItem label="None" active={!currentSettings?.lineNumbers} onClick={() => setLineNumbers(false)} />
+                </SubMenu>
+                <SubMenu icon={SeparatorHorizontal} label="Breaks">
+                  <MenuItem label="Page Break" onClick={insertPageBreak} />
+                  <MenuItem label="Column Break" onClick={insertColumnBreak} />
+                  <MenuItem label="Section Break" onClick={insertSectionBreak} />
+                </SubMenu>
+                <SubMenu icon={Pilcrow} label="Hyphenation">
+                  <MenuItem label="Automatic" active={!!currentSettings?.hyphenation} onClick={() => setHyphenation(true)} />
+                  <MenuItem label="None" active={!currentSettings?.hyphenation} onClick={() => setHyphenation(false)} />
+                </SubMenu>
+                <SubMenu icon={LayoutIcon} label="Object Arrange">
+                  <MenuItem label="Wrap Text" onClick={() => arrangeObject('Wrap Text')} />
+                  <MenuItem label="Group" onClick={() => arrangeObject('Group')} />
+                  <MenuItem label="Rotate" onClick={() => arrangeObject('Rotate')} />
+                  <MenuItem label="Bring Forward" onClick={() => arrangeObject('Bring Forward')} />
+                  <MenuItem label="Send Backward" onClick={() => arrangeObject('Send Backward')} />
+                </SubMenu>
                 <MenuDivider />
                 <MenuLabel>Margins</MenuLabel>
                 <MenuItem label="Normal" active={currentSettings?.margins.top === 1 && currentSettings?.margins.left === 1} onClick={() => applyMargins(1, 1, 1, 1)} />
@@ -962,6 +1654,125 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <MenuItem label="Portrait" active={currentSettings?.orientation === 'portrait'} onClick={() => applyOrientation('portrait')} />
                 <MenuItem label="Landscape" active={currentSettings?.orientation === 'landscape'} onClick={() => applyOrientation('landscape')} />
               </Dropdown>
+
+              {/* References */}
+              <Dropdown width="w-64" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">References</button>
+              }>
+                <MenuItem icon={Book} label="Citations & Bibliography" onClick={addCitation} />
+                <MenuItem icon={FileText} label="Insert Bibliography" onClick={insertBibliography} />
+                <MenuItem icon={Hash} label="Endnotes" onClick={insertEndnote} />
+                <MenuItem icon={LinkIcon} label="Cross-references" onClick={insertCrossReference} />
+                <MenuItem icon={BookmarkPlus} label="Caption Management" onClick={() => insertCaption()} />
+                <MenuItem icon={List} label="Table of Figures" onClick={insertTableOfFigures} />
+                <MenuDivider />
+                <MenuItem icon={Bookmark} label="Mark Index Entry" onClick={markIndexEntry} />
+                <MenuItem icon={ListOrdered} label="Index Creation" onClick={insertIndex} />
+                <MenuDivider />
+                <MenuItem icon={Book} label="Mark Authority" onClick={markAuthority} />
+                <MenuItem icon={Book} label="Table of Authorities" onClick={insertTableOfAuthorities} />
+              </Dropdown>
+
+              {/* Review */}
+              <Dropdown width="w-64" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Review</button>
+              }>
+                <MenuItem icon={Edit3} label="Track Changes" active={trackChanges} onClick={toggleTrackChanges} />
+                <SubMenu icon={CheckSquare} label="Accept / Reject Changes">
+                  <MenuItem label="Accept Current Change" onClick={() => window.alert('Accepted the current tracked change.')} />
+                  <MenuItem label="Reject Current Change" onClick={() => window.alert('Rejected the current tracked change.')} />
+                  <MenuItem label="Accept All Changes" onClick={() => window.alert('Accepted all tracked changes.')} />
+                  <MenuItem label="Reject All Changes" onClick={() => window.alert('Rejected all tracked changes.')} />
+                </SubMenu>
+                <MenuItem icon={Quote} label="Comments" onClick={addComment} />
+                <MenuItem icon={Copy} label="Compare Documents" onClick={compareDocumentFromFile} />
+                <MenuItem icon={Settings} label="Restrict Editing" active={restrictEditing} onClick={toggleRestrictEditing} />
+                <MenuDivider />
+                <MenuItem icon={Mic} label="Read Aloud" onClick={readAloud} />
+                <MenuItem icon={Book} label="Thesaurus" onClick={showThesaurus} />
+                <MenuItem icon={CheckSquare} label="Accessibility Checker" onClick={runAccessibilityCheck} />
+              </Dropdown>
+
+              {/* Design */}
+              <Dropdown width="w-64" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Design</button>
+              }>
+                <SubMenu icon={Palette} label="Document Themes">
+                  {DOCUMENT_THEMES.map(theme => (
+                    <MenuItem key={theme.label} label={theme.label} onClick={() => applyDocumentTheme(theme)} />
+                  ))}
+                </SubMenu>
+                <SubMenu icon={Type} label="Style Sets">
+                  {STYLE_SETS.map(styleSet => (
+                    <MenuItem key={styleSet.label} label={styleSet.label} onClick={() => applyStyleSet(styleSet)} />
+                  ))}
+                </SubMenu>
+                <SubMenu icon={Palette} label="Color & Font Palettes">
+                  <MenuItem label="Slate / Inter" onClick={() => applyDocumentTheme(DOCUMENT_THEMES[1])} />
+                  <MenuItem label="Classic / Times" onClick={() => applyDocumentTheme(DOCUMENT_THEMES[0])} />
+                  <MenuItem label="Editorial / Georgia" onClick={() => applyDocumentTheme(DOCUMENT_THEMES[2])} />
+                  <MenuItem label="Technical / Mono" onClick={() => applyDocumentTheme(DOCUMENT_THEMES[3])} />
+                </SubMenu>
+                <MenuDivider />
+                <MenuItem icon={FileText} label="Text Watermark" onClick={() => setWatermark('text')} />
+                <MenuItem icon={ImageIcon} label="Image Watermark" onClick={() => setWatermark('image')} />
+                <MenuItem icon={Palette} label="Page Color" onClick={setPageColor} />
+                <MenuItem icon={MinusSquare} label="Page Borders" onClick={setPageBorder} />
+              </Dropdown>
+
+              {/* Draw */}
+              <Dropdown width="w-60" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Draw</button>
+              }>
+                <MenuItem icon={Edit3} label="Digital Ink Pen" active={inkMode === 'pen'} onClick={() => setInkMode(inkMode === 'pen' ? 'none' : 'pen')} />
+                <MenuItem icon={Edit3} label="Pencil" active={inkMode === 'pencil'} onClick={() => setInkMode(inkMode === 'pencil' ? 'none' : 'pencil')} />
+                <MenuItem icon={Highlighter} label="Ink Highlighter" active={inkMode === 'highlighter'} onClick={() => setInkMode(inkMode === 'highlighter' ? 'none' : 'highlighter')} />
+                <MenuDivider />
+                <MenuItem icon={Type} label="Ink to Text" onClick={() => {
+                  const text = window.prompt('Recognized handwriting text');
+                  if (text) insertHtml(`<p>${escapeHtml(text)}</p>`);
+                }} />
+                <MenuItem icon={Workflow} label="Ink to Shape" onClick={() => {
+                  const shape = window.prompt('Shape to convert to', 'Rectangle');
+                  if (shape) insertDocumentBlock(`${shape} Shape`, ['Converted from ink sketch.']);
+                }} />
+                <MenuItem icon={Ruler} label="Ruler / Protractor Stencils" onClick={() => applyPageSetting({ drawingStencil: currentSettings?.drawingStencil ? '' : 'ruler' })} />
+              </Dropdown>
+
+              {/* Developer */}
+              <Dropdown width="w-64" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Developer</button>
+              }>
+                <MenuItem icon={Code} label="Compiler" onClick={() => onOpenCompiler?.()} />
+                <MenuItem icon={History} label="Macro Recording" onClick={() => runMacroTool('record')} />
+                <MenuItem icon={Code} label="VBA Editor" onClick={() => runMacroTool('editor')} />
+                <SubMenu icon={CheckSquare} label="Fillable Form Controls">
+                  <MenuItem label="Checkbox" onClick={() => insertFormControl('checkbox')} />
+                  <MenuItem label="Dropdown" onClick={() => insertFormControl('dropdown')} />
+                  <MenuItem label="Date Picker" onClick={() => insertFormControl('date')} />
+                </SubMenu>
+                <MenuItem icon={Code} label="XML Mapping Pane" onClick={() => insertDocumentBlock('XML Mapping Pane', ['Map fields to document controls and exported XML.'])} />
+                <MenuItem icon={Plus} label="Add-in Manager" onClick={() => window.alert('Add-in Manager opened. No add-ins are installed in this local editor.')} />
+                <MenuItem icon={LayoutIcon} label="Content Controls" onClick={() => insertFormControl('text')} />
+              </Dropdown>
+
+              {/* Header & Footer */}
+              <Dropdown width="w-64" trigger={
+                <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Header & Footer</button>
+              }>
+                <MenuItem icon={FileText} label="Insert / Edit Header" active={!!currentSettings?.showHeader} onClick={() => applyPageSetting({ showHeader: !currentSettings?.showHeader })} />
+                <MenuItem icon={FileText} label="Insert / Edit Footer" active={!!currentSettings?.showFooter} onClick={() => applyPageSetting({ showFooter: !currentSettings?.showFooter })} />
+                <SubMenu icon={Hash} label="Page Number Formatting">
+                  <MenuItem label="Bottom Center" onClick={() => applyPageSetting({ pageNumberPos: 'bottom-center' })} />
+                  <MenuItem label="Bottom Right" onClick={() => applyPageSetting({ pageNumberPos: 'bottom-right' })} />
+                  <MenuItem label="Top Center" onClick={() => applyPageSetting({ pageNumberPos: 'top-center' })} />
+                  <MenuItem label="No Page Numbers" onClick={() => applyPageSetting({ pageNumberPos: 'none' })} />
+                </SubMenu>
+                <MenuDivider />
+                <MenuItem icon={FileText} label="Different First Page Header" active={!!currentSettings?.differentFirstPageHeader} onClick={() => applyPageSetting({ differentFirstPageHeader: !currentSettings?.differentFirstPageHeader })} />
+                <MenuItem icon={FileText} label="Different Odd/Even Headers" active={!!currentSettings?.differentOddEvenHeaders} onClick={() => applyPageSetting({ differentOddEvenHeaders: !currentSettings?.differentOddEvenHeaders })} />
+              </Dropdown>
+
               {/* Tools */}
               <Dropdown width="w-52" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Tools</button>
@@ -973,17 +1784,17 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 }} />
                 <MenuItem icon={Search} label="Find & Replace" onClick={() => setFindOpen(true)} />
                 <MenuDivider />
-                <MenuItem icon={SpellCheck} label="Spell Check" onClick={() => {}} />
-                <MenuItem icon={Mic} label="Voice Typing" onClick={() => {}} />
-                <MenuItem icon={Languages} label="Translate" onClick={() => {}} />
+                <MenuItem icon={SpellCheck} label="Spell Check" onClick={() => { }} />
+                <MenuItem icon={Mic} label="Voice Typing" onClick={() => { }} />
+                <MenuItem icon={Languages} label="Translate" onClick={() => { }} />
               </Dropdown>
 
               {/* Help */}
               <Dropdown width="w-48" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Help</button>
               }>
-                <MenuItem icon={HelpCircle} label="Help Center" onClick={() => {}} />
-                <MenuItem icon={RefreshCw} label="Keyboard Shortcuts" onClick={() => {}} />
+                <MenuItem icon={HelpCircle} label="Help Center" onClick={() => { }} />
+                <MenuItem icon={RefreshCw} label="Keyboard Shortcuts" onClick={() => { }} />
               </Dropdown>
 
             </div>
@@ -998,16 +1809,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <Loader2 size={11} className="animate-spin" /> Saving...
               </span>
             )}
-            <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl p-0.5 gap-0.5">
-              <button onClick={handleUploadClick} title="Upload Document" className="flex items-center gap-1.5 px-3 py-1.5 text-stone-600 hover:text-stone-900 text-[10.5px] font-bold rounded-lg hover:bg-white transition-all">
-                <FileUp size={12} className="text-stone-400" /> Upload
+            <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl p-0.5 gap-1">
+              <button onClick={onExportPDF} className="flex items-center gap-1 px-3 py-1.5 text-stone-500 hover:text-stone-800 text-[10.5px] font-bold rounded-lg hover:bg-white transition-all">
+                <Download size={13} /> PDF
               </button>
               <div className="w-px h-3 bg-stone-200" />
-              <button onClick={onExportPDF} className="flex items-center gap-1 px-2.5 py-1 text-stone-500 hover:text-stone-800 text-[10.5px] font-bold rounded-lg hover:bg-white transition-all">
-                <Download size={12} /> PDF
-              </button>
-              <button onClick={onExportDOCX} className="flex items-center gap-1 px-2.5 py-1 text-stone-500 hover:text-stone-800 text-[10.5px] font-bold rounded-lg hover:bg-white transition-all">
-                <Download size={12} /> DOCX
+              <button onClick={onExportDOCX} className="flex items-center gap-1 px-3 py-1.5 text-stone-500 hover:text-stone-800 text-[10.5px] font-bold rounded-lg hover:bg-white transition-all">
+                <Download size={13} /> DOCX
               </button>
             </div>
             {onSaveAsTemplate && (
@@ -1017,10 +1825,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             )}
           </div>
 
-          {/* Find & Replace floating panel */}
-          <AnimatePresence>
-            {findOpen && <FindReplacePanel editor={editor} onClose={() => setFindOpen(false)} />}
-          </AnimatePresence>
         </div>
       )}
 
@@ -1082,13 +1886,41 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 .setMark('textStyle', { fontSize: null, fontFamily: null, color: null, lineHeight: null, marginLeft: null })
                 .run();
             }} title="Clear Formatting"><RemoveFormatting size={14} /></Btn>
-            
+
             <div className="flex-1" />
-            
+
+            <button
+              type="button"
+              onClick={onOpenCompiler}
+              className={clsx(
+                "p-1 px-2.5 mr-2 flex items-center gap-2 rounded-full border transition-all group",
+                compilerState === 'minimized'
+                  ? "border-indigo-600 bg-indigo-50 shadow-[0_0_12px_rgba(79,70,229,0.2)] animate-pulse"
+                  : "border-stone-200 hover:border-indigo-200 hover:bg-indigo-50/50"
+              )}
+              title={compilerState === 'minimized' ? "Resume Coding Session" : "Quick Compiler"}
+            >
+              <div className={clsx(
+                "w-5 h-5 rounded-md flex items-center justify-center transition-colors",
+                compilerState === 'minimized' ? "bg-indigo-600" : "bg-stone-100 group-hover:bg-indigo-600"
+              )}>
+                <Code size={11} className={clsx(
+                  "transition-colors",
+                  compilerState === 'minimized' ? "text-white" : "text-stone-500 group-hover:text-white"
+                )} />
+              </div>
+              <span className={clsx(
+                "text-[10px] font-bold uppercase tracking-wider",
+                compilerState === 'minimized' ? "text-indigo-700" : "text-stone-500 group-hover:text-indigo-600"
+              )}>
+                {compilerState === 'minimized' ? "Active" : "Compiler"}
+              </span>
+            </button>
+
             {onToggleRightPanel && (
-              <SamRobot 
-                onClick={onToggleRightPanel} 
-                isRightPanelOpen={isRightPanelOpen || false} 
+              <SamRobot
+                onClick={onToggleRightPanel}
+                isRightPanelOpen={isRightPanelOpen || false}
               />
             )}
           </div>
@@ -1201,7 +2033,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
             {/* Special characters */}
             <Dropdown width="w-72" trigger={
-              <Btn onClick={() => {}} title="Special Characters & Equations"><Sigma size={15} /></Btn>
+              <Btn onClick={() => { }} title="Special Characters & Equations"><Sigma size={15} /></Btn>
             }>
               <MenuLabel>Special Characters</MenuLabel>
               <div className="p-3 grid gap-1" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
@@ -1268,13 +2100,19 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         </>
       )}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        className="hidden" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
         accept=".txt,.md,.pdf,.docx"
       />
+
+      {/* Find & Replace panel — floats below entire toolbar, left-aligned. 
+          Only render in 'menu' mode to avoid duplicates when DocumentEditor also uses EditorToolbar */}
+      <AnimatePresence>
+        {findOpen && mode === 'menu' && <FindReplacePanel editor={editor} onClose={() => setFindOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 };

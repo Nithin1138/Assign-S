@@ -11,6 +11,7 @@ interface EditorStatusBarProps {
   wordCount: number;
   charCount: number;
   pageCount: number;
+  currentPage?: number;
   zoom: number;
   onZoomChange: (zoom: number) => void;
   onShowWordCount?: () => void;
@@ -22,6 +23,7 @@ const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
   wordCount,
   charCount,
   pageCount,
+  currentPage = 1,
   zoom,
   onZoomChange,
   onShowWordCount,
@@ -40,7 +42,8 @@ const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
         </button>
         <div className="flex items-center gap-2">
           <Layers size={14} className="text-[var(--text-muted)]" />
-          <span className="hidden xs:inline">Pages:</span> <span className="text-[var(--text-main)]">{pageCount}</span>
+          <span className="hidden xs:inline">Page</span>
+          <span className="text-[var(--text-main)] tabular-nums">{Math.min(currentPage, pageCount)} of {pageCount}</span>
         </div>
         <div className="hidden sm:flex items-center gap-2">
           <MousePointer2 size={14} className="text-[var(--text-muted)]" />

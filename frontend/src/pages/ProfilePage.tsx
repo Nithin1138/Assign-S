@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon, Camera, Save, RefreshCw,
   Calendar as CalendarIcon, ChevronRight, ChevronLeft,
@@ -242,6 +243,10 @@ const SkillInput = ({ skills, onChange }: { skills: string[]; onChange: (s: stri
 
 // ─── Recent Docs List ─────────────────────────────────────────────────────────
 const RecentDocsList = ({ docs }: { docs: Document[] }) => {
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const isMergingEnabled = profile?.preferences?.mergeDocuments ?? true;
+
   const recent = useMemo(() =>
     [...docs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5),
     [docs]);
@@ -256,12 +261,20 @@ const RecentDocsList = ({ docs }: { docs: Document[] }) => {
       {recent.map((doc, i) => (
         <motion.div key={(doc as any).id || i}
           initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-          className="flex items-center gap-3 p-3 rounded-2xl hover:bg-[var(--bg-app)] transition-colors group cursor-pointer">
+          onClick={() => navigate(doc.isPersonal ? `/editor/personal/${doc.id}` : `/editor/${doc.id}`)}
+          className="flex items-center gap-3 p-3 rounded-2xl hover:bg-[var(--bg-app)] transition-colors group cursor-pointer relative overflow-hidden">
           <div className="w-8 h-8 rounded-xl bg-[var(--bg-app)] border border-[var(--border-main)] flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--text-main)] transition-colors shadow-sm">
             <FileText size={12} className="text-[var(--text-muted)] group-hover:text-white transition-colors" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-black text-[var(--text-main)] truncate">{(doc as any).title || 'Untitled'}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black text-[var(--text-main)] truncate">{(doc as any).title || 'Untitled'}</p>
+              {isMergingEnabled && doc.isPersonal && (
+                <span className="flex-shrink-0 px-2 py-0.5 bg-[var(--accent-main)]/5 text-[var(--accent-main)] rounded-full text-[7px] font-black uppercase tracking-widest border border-[var(--accent-main)]/10">
+                  Personal
+                </span>
+              )}
+            </div>
             <p className="text-[9px] text-[var(--text-muted)] opacity-60 mt-0.5">
               {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </p>
@@ -314,12 +327,19 @@ const ProfilePage = () => {
     return subscribeToUserDocuments(uid, setAllDocs);
   }, [user, userProfile, offlineUid]);
 
+  const isMergingEnabled = profile?.preferences?.mergeDocuments ?? true;
+
   const filteredDocs = useMemo(() => {
-    if (!searchQuery) return allDocs;
-    return allDocs.filter(d => 
+    let docs = allDocs;
+    if (!isMergingEnabled) {
+      docs = docs.filter(d => !d.isPersonal);
+    }
+    
+    if (!searchQuery) return docs;
+    return docs.filter(d => 
       (d as any).title?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [allDocs, searchQuery]);
+  }, [allDocs, searchQuery, isMergingEnabled]);
 
   const stats = useMemo(() => {
     const weekly = [0, 0, 0, 0, 0, 0, 0];

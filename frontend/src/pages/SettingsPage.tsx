@@ -75,11 +75,27 @@ const SettingsPage = () => {
     }
   };
 
+  const toggleMerge = async () => {
+    if (!user) return;
+    try {
+      const isCurrentlyMerged = profile?.preferences?.mergeDocuments ?? true;
+      const updatedPrefs = {
+        ...(profile?.preferences || {}),
+        mergeDocuments: !isCurrentlyMerged
+      };
+      await updateUserProfile(user.uid, { preferences: updatedPrefs } as UserProfile);
+      await refreshProfile();
+      toast.success(isCurrentlyMerged ? 'Documents separated' : 'Documents merged');
+    } catch (err) {
+      toast.error('Failed to update document preferences');
+    }
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-[var(--bg-app)] pb-32">
         {/* Hero Section */}
-        <div className="max-w-7xl mx-auto px-8 pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-8 pt-12 pb-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -99,9 +115,9 @@ const SettingsPage = () => {
               </div>
             </div>
           </motion.div>
-
+ 
           {/* Tab Navigation */}
-          <div className="flex gap-2 mt-16 p-1.5 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] w-fit shadow-sm">
+          <div className="flex gap-2 mt-8 p-1.5 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-[2rem] w-fit shadow-sm">
             {[
               { id: 'interface', label: 'Interface', icon: Palette },
               { id: 'support', label: 'Support', icon: LifeBuoy },
@@ -129,7 +145,7 @@ const SettingsPage = () => {
             ))}
           </div>
         </div>
-
+ 
         {/* Content Area */}
         <div className="max-w-7xl mx-auto px-8">
           <AnimatePresence mode="wait">
@@ -143,7 +159,7 @@ const SettingsPage = () => {
                 className="grid grid-cols-12 gap-12"
               >
                 {/* Left Column: Themes */}
-                <div className="col-span-12 lg:col-span-8 space-y-12">
+                <div className="col-span-12 lg:col-span-8 space-y-8">
                   <section className={clsx(
                     "p-10 rounded-[3.5rem] border border-[var(--border-main)] shadow-2xl transition-all duration-500",
                     isGlassEnabled ? "glass-card" : "bg-[var(--bg-card)]"
@@ -214,50 +230,75 @@ const SettingsPage = () => {
                 </div>
 
                 {/* Right Column: Experience */}
-                <div className="col-span-12 lg:col-span-4 space-y-8">
+                <div className="col-span-12 lg:col-span-4 space-y-6">
+                  {/* Immersion Setting */}
                   <section className={clsx(
-                    "p-10 rounded-[3.5rem] border border-[var(--border-main)] shadow-xl flex flex-col h-full",
+                    "p-8 rounded-[3rem] border border-[var(--border-main)] shadow-xl flex flex-col",
                     isGlassEnabled ? "glass-card" : "bg-[var(--bg-card)]"
                   )}>
-                    <div className="mb-8">
-                      <div className="flex items-center gap-4 mb-6">
-                        <div className="p-3 bg-blue-500/10 rounded-2xl">
-                          <GlassIcon className="text-blue-500" size={24} />
+                    <div className="mb-0">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                          <GlassIcon className="text-blue-500" size={20} />
                         </div>
-                        <h3 className="text-2xl font-black text-[var(--text-main)] tracking-tighter uppercase">Immersion</h3>
+                        <h3 className="text-xl font-black text-[var(--text-main)] tracking-tighter uppercase">Immersion</h3>
                       </div>
-                      <p className="text-[var(--text-muted)] font-medium text-sm leading-relaxed mb-10">
+                      <p className="text-[var(--text-muted)] font-medium text-xs leading-relaxed">
                         Enable glassmorphism for enhanced interface depth.
                       </p>
                     </div>
 
-                    <div className="mt-auto pt-6 border-t border-[var(--border-main)] border-dashed">
+                    <div className="pt-4">
                       <button
                         onClick={toggleGlass}
                         className={clsx(
-                          "w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs transition-all flex items-center justify-center gap-4 group relative overflow-hidden",
+                          "w-full py-4 rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] transition-all flex items-center justify-center gap-3 group relative overflow-hidden",
                           isGlassEnabled 
-                            ? "bg-emerald-500 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)]" 
-                            : "bg-[var(--text-main)] text-[var(--bg-card)] hover:scale-[1.02]"
+                            ? "bg-emerald-500 text-white shadow-lg" 
+                            : "bg-[var(--text-main)] text-[var(--bg-card)] hover:scale-[1.01]"
                         )}
                       >
-                        <span className="relative z-10 flex items-center gap-3">
-                          {isGlassEnabled ? 'Neural Glass Active' : 'Enable Neural Glass'}
-                          {isGlassEnabled ? <Check size={18} strokeWidth={3} /> : <Zap size={18} fill="currentColor" />}
+                        <span className="relative z-10 flex items-center gap-2">
+                          {isGlassEnabled ? 'Glass On' : 'Glass Off'}
+                          {isGlassEnabled ? <Check size={14} strokeWidth={3} /> : <Zap size={14} fill="currentColor" />}
                         </span>
-                        {isGlassEnabled && (
-                          <motion.div 
-                            initial={{ x: '-100%' }}
-                            animate={{ x: '100%' }}
-                            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-                          />
-                        )}
                       </button>
                     </div>
                   </section>
 
-                  {/* Experience Section End */}
+                  {/* Organization Setting */}
+                  <section className={clsx(
+                    "p-8 rounded-[3rem] border border-[var(--border-main)] shadow-xl flex flex-col",
+                    isGlassEnabled ? "glass-card" : "bg-[var(--bg-card)]"
+                  )}>
+                    <div className="mb-0">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="p-2.5 bg-amber-500/10 rounded-xl">
+                          <Sparkles className="text-amber-500" size={20} />
+                        </div>
+                        <h3 className="text-xl font-black text-[var(--text-main)] tracking-tighter uppercase">Organization</h3>
+                      </div>
+                      <p className="text-[var(--text-muted)] font-medium text-xs leading-relaxed">
+                        Merge assignments and personal drafts into a single archive.
+                      </p>
+                    </div>
+                    <div className="pt-4">
+                      <button
+                        onClick={toggleMerge}
+                        className={clsx(
+                          "w-full py-4 rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] transition-all flex items-center justify-center gap-3 group relative overflow-hidden",
+                          (profile?.preferences?.mergeDocuments ?? true)
+                            ? "bg-amber-500 text-white shadow-lg" 
+                            : "bg-[var(--text-main)] text-[var(--bg-card)] hover:scale-[1.01]"
+                        )}
+                      >
+                        <span className="relative z-10 flex items-center gap-2">
+                          {(profile?.preferences?.mergeDocuments ?? true) ? 'Unified' : 'Separate'}
+                          {(profile?.preferences?.mergeDocuments ?? true) ? <Check size={14} strokeWidth={3} /> : <ChevronRight size={14} strokeWidth={3} />}
+                        </span>
+                      </button>
+                    </div>
+                  </section>
                 </div>
               </motion.div>
             ) : (
@@ -319,7 +360,7 @@ const SettingsPage = () => {
                     ))}
                   </div>
 
-                  <div className="mt-20 p-12 bg-gradient-to-br from-[var(--text-main)] to-[#44403C] rounded-[4rem] text-[var(--bg-card)] flex flex-col lg:flex-row items-center justify-between gap-12 shadow-2xl relative overflow-hidden group">
+                  <div className="mt-12 p-12 bg-gradient-to-br from-[var(--text-main)] to-[#44403C] rounded-[4rem] text-[var(--bg-card)] flex flex-col lg:flex-row items-center justify-between gap-12 shadow-2xl relative overflow-hidden group">
                     <div className="flex flex-col lg:flex-row items-center gap-8 relative z-10 text-center lg:text-left">
                       <div className="w-24 h-24 rounded-[2rem] bg-white text-[#1C1917] flex items-center justify-center shadow-2xl animate-pulse">
                         <MessageSquare size={44} />

@@ -245,7 +245,7 @@ const GeneratePage = () => {
                     setSections(convertExtractedSections(aiData.sections));
                     setExtractionDetails(prev => ({ ...prev, ai: aiData }));
                     if (aiData.title) setTopic(aiData.title);
-                    
+
                     // Update metadata if AI found better values
                     const m = aiData.metadata;
                     if (m?.student_name) setStudentName(m.student_name);
@@ -255,7 +255,7 @@ const GeneratePage = () => {
 
                     toast.success('Structure refined with Universal AI');
                 } else if (data.sections.length > 0) {
-                     toast.success('Local extraction successful');
+                    toast.success('Local extraction successful');
                 } else {
                     throw new Error('AI returned no sections');
                 }
@@ -509,9 +509,9 @@ const GeneratePage = () => {
                     />
                 </div>
 
-                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto pt-24 md:pt-32">
+                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto pt-6 md:pt-12">
                     {/* Header */}
-                    <header className="mb-16 text-center space-y-4">
+                    <header className="mb-10 text-center space-y-4">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}

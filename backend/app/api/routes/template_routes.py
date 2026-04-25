@@ -33,6 +33,8 @@ def save_template(
     if req.user_id != user["uid"]:
         raise HTTPException(status_code=403, detail="Access denied.")
     template = template_service.save_template(db, req)
+    if template == "ALREADY_EXISTS":
+        raise HTTPException(status_code=400, detail="This document is already saved as a template.")
     return JSONResponse(status_code=201, content=success_response(
         {
             "id": template.id,

@@ -44,6 +44,25 @@ def get_document(db, doc_id, user_id):
     return document_repo.get_document(db, doc_id, user_id)
 
 
+def get_document_versions(db, doc_id, user_id):
+    doc = document_repo.get_document(db, doc_id, user_id)
+    if not doc:
+        return None
+    return document_repo.get_document_versions(db, doc_id)
+
+def rename_document_version(db, doc_id, version_id, name, user_id):
+    doc = document_repo.get_document_for_update(db, doc_id, user_id)
+    if not doc:
+        return None
+    return document_repo.rename_document_version(db, version_id, name)
+
+def delete_document_version(db, doc_id, version_id, user_id):
+    doc = document_repo.get_document_for_update(db, doc_id, user_id)
+    if not doc:
+        return False
+    return document_repo.delete_document_version(db, version_id)
+
+
 def update_document(db, doc_id, req):
     doc = document_repo.get_document_for_update(db, doc_id, req.user_id)
     if not doc:

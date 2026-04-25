@@ -68,17 +68,21 @@ def get_document_for_update(db, doc_id, user_id):
 
 
 def update_document(db, doc, data):
-    # Capture current content as a version BEFORE updating
-    version = DocumentVersion(document_id=doc.id, content=doc.content)
-    db.add(version)
-
     if hasattr(data, "model_dump"):
-        data = data.model_dump(exclude_unset=True)
+        data_dict = data.model_dump(exclude_unset=True)
     elif hasattr(data, "dict"):
-        data = data.dict(exclude_unset=True)
-    
-    for key, value in data.items():
-        if value is not None and key not in ["id", "user_id"]:
+        data_dict = data.dict(exclude_unset=True)
+    else:
+        data_dict = data
+
+    # Capture current content as a version BEFORE updating ONLY if manual save
+    if data_dict.get("is_manual_save") is True:
+        version_name = data_dict.get("version_name")
+        version = DocumentVersion(document_id=doc.id, content=doc.content, name=version_name)
+        db.add(version)
+
+    for key, value in data_dict.items():
+        if value is not None and key not in ["id", "user_id", "is_manual_save", "version_name"]:
             setattr(doc, key, value)
 
     db.commit()
@@ -91,6 +95,27 @@ def delete_document(db, doc):
     doc.is_deleted = True
     db.commit()
 
+
+def get_document_versions(db, doc_id):
+    return db.query(DocumentVersion).filter(
+        DocumentVersion.document_id == doc_id
+    ).order_by(DocumentVersion.created_at.desc()).all()
+
+def rename_document_version(db, version_id, name):
+    version = db.query(DocumentVersion).filter(DocumentVersion.id == version_id).first()
+    if version:
+        version.name = name
+        db.commit()
+        db.refresh(version)
+    return version
+
+def delete_document_version(db, version_id):
+    version = db.query(DocumentVersion).filter(DocumentVersion.id == version_id).first()
+    if version:
+        db.delete(version)
+        db.commit()
+        return True
+    return False
 
 # --------------------------------------------------
 # SHARED DOCUMENT OPERATIONS

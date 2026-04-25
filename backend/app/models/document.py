@@ -17,6 +17,7 @@ class Document(Base):
     tone = Column(Text)
     status = Column(Text, default="draft") # draft, generated, finalized
     share_code = Column(Text, unique=True, index=True, nullable=True)
+    page_settings = Column(JSON, nullable=True)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -42,6 +42,8 @@ interface DocumentEditorProps {
   onApplySettings?: (s: any) => void;
   currentSettings?: any;
   onUploadDocument?: (f: File) => void;
+  onOpenCompiler?: () => void;
+  compilerState?: 'open' | 'minimized' | 'closed';
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -67,6 +69,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onApplySettings,
   currentSettings,
   onUploadDocument,
+  onOpenCompiler,
+  compilerState,
 }) => {
   const [isAiInputOpen, setIsAiInputOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState('');
@@ -138,6 +142,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         onApplySettings={onApplySettings}
         currentSettings={currentSettings}
         onUploadDocument={onUploadDocument}
+        onOpenCompiler={onOpenCompiler}
+        compilerState={compilerState}
       />
       
       <div
@@ -288,26 +294,30 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
           style={{ 
             transformOrigin: 'top center',
             '--page-width': (() => {
-              const d = {
+              const sizes: Record<string, { w: number; h: number }> = {
                 a4: { w: 210, h: 297 },
                 letter: { w: 215.9, h: 279.4 },
                 legal: { w: 215.9, h: 355.6 },
                 a3: { w: 297, h: 420 },
                 a5: { w: 148, h: 210 }
-              }[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
+              };
+              const d = sizes[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
               return currentSettings?.orientation === 'landscape' ? `${d.h}mm` : `${d.w}mm`;
             })(),
             '--page-height': (() => {
-              const d = {
+              const sizes: Record<string, { w: number; h: number }> = {
                 a4: { w: 210, h: 297 },
                 letter: { w: 215.9, h: 279.4 },
                 legal: { w: 215.9, h: 355.6 },
                 a3: { w: 297, h: 420 },
                 a5: { w: 148, h: 210 }
-              }[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
+              };
+              const d = sizes[currentSettings?.paperSize || 'a4'] || { w: 210, h: 297 };
               return currentSettings?.orientation === 'landscape' ? `${d.w}mm` : `${d.h}mm`;
             })(),
             '--page-color': currentSettings?.pageColor || '#ffffff',
+            '--watermark-image': currentSettings?.watermarkImage ? `url("${currentSettings.watermarkImage}")` : undefined,
+            border: currentSettings?.pageBorder || undefined,
           } as any}
           className={clsx(
             "page-container relative mx-auto transition-all duration-500",
@@ -315,6 +325,12 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
             currentSettings?.showFooter && "show-footer"
           )}
           data-page-numbers={currentSettings?.pageNumberPos || 'none'}
+          data-line-numbers={currentSettings?.lineNumbers ? 'true' : 'false'}
+          data-watermark={currentSettings?.watermarkText || undefined}
+          data-watermark-image={currentSettings?.watermarkImage ? 'true' : undefined}
+          data-drawing-stencil={currentSettings?.drawingStencil || undefined}
+          data-different-first-page={currentSettings?.differentFirstPageHeader ? 'true' : 'false'}
+          data-different-odd-even={currentSettings?.differentOddEvenHeaders ? 'true' : 'false'}
         >
           {/* Header Placeholder */}
           <div className="header-area">
@@ -329,7 +345,10 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
             className="relative z-10 w-full"
             style={{ 
               backgroundColor: currentSettings?.pageColor || '#ffffff',
-              minHeight: currentSettings?.orientation === 'landscape' ? '210mm' : '297mm'
+              minHeight: currentSettings?.orientation === 'landscape' ? '210mm' : '297mm',
+              columnCount: currentSettings?.columns || 1,
+              columnGap: '0.5in',
+              hyphens: currentSettings?.hyphenation ? 'auto' : 'manual'
             }}
           />
 

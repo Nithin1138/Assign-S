@@ -13,7 +13,23 @@ import {
   ArrowLeft,
   X,
   ChevronDown,
-  CheckSquare
+  CheckSquare,
+  Code,
+  Minus,
+  History,
+  Edit2,
+  Check,
+  Share2,
+  Globe,
+  Monitor,
+  Copy as CopyIcon,
+  Mail as MailIcon,
+  QrCode,
+  FileText as FileTextIcon,
+  Users,
+  Send,
+  User,
+  Link as LinkIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEditor, Editor } from '@tiptap/react';
@@ -55,8 +71,14 @@ import {
   createEditorDocument,
   updateEditorDocument,
   saveAsTemplate,
+  getDocumentVersions,
+  renameDocumentVersion,
+  deleteDocumentVersion,
+  generateShareCode,
   Document as Assignment,
-  DocumentSection
+  DocumentSection,
+  updateUserProfile,
+  UserProfile
 } from '../../../shared/services/db';
 import { performTask, TaskType, AcademicTone } from '../../../shared/services/ai';
 import DocumentEditor from '../components/DocumentEditor';
@@ -115,6 +137,46 @@ const CustomFormatting = TextStyle.extend({
           return { style: `color: ${attributes.color}` }
         },
       },
+      letterSpacing: {
+        default: null,
+        parseHTML: element => element.style.letterSpacing,
+        renderHTML: attributes => {
+          if (!attributes.letterSpacing) return {}
+          return { style: `letter-spacing: ${attributes.letterSpacing}` }
+        },
+      },
+      textShadow: {
+        default: null,
+        parseHTML: element => element.style.textShadow,
+        renderHTML: attributes => {
+          if (!attributes.textShadow) return {}
+          return { style: `text-shadow: ${attributes.textShadow}` }
+        },
+      },
+      fontVariantLigatures: {
+        default: null,
+        parseHTML: element => element.style.fontVariantLigatures,
+        renderHTML: attributes => {
+          if (!attributes.fontVariantLigatures) return {}
+          return { style: `font-variant-ligatures: ${attributes.fontVariantLigatures}` }
+        },
+      },
+      fontFeatureSettings: {
+        default: null,
+        parseHTML: element => element.style.fontFeatureSettings,
+        renderHTML: attributes => {
+          if (!attributes.fontFeatureSettings) return {}
+          return { style: `font-feature-settings: ${attributes.fontFeatureSettings}` }
+        },
+      },
+      fontVariantCaps: {
+        default: null,
+        parseHTML: element => element.style.fontVariantCaps,
+        renderHTML: attributes => {
+          if (!attributes.fontVariantCaps) return {}
+          return { style: `font-variant-caps: ${attributes.fontVariantCaps}` }
+        },
+      },
     }
   },
 
@@ -153,52 +215,62 @@ const CustomFormatting = TextStyle.extend({
 
 // ─── Page Setup Modal ─────────────────────────────────────────────────────────
 type PageOrientation = 'portrait' | 'landscape';
-type PaperSizeId     = 'a4' | 'letter' | 'legal' | 'a3' | 'a5';
-type PageNumberPos   = 'none' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'top-center' | 'top-right' | 'top-left';
+type PaperSizeId = 'a4' | 'letter' | 'legal' | 'a3' | 'a5';
+type PageNumberPos = 'none' | 'bottom-center' | 'bottom-right' | 'bottom-left' | 'top-center' | 'top-right' | 'top-left';
 
 interface PageSetupSettings {
-  orientation:   PageOrientation;
-  paperSize:     PaperSizeId;
-  margins:       { top: number; right: number; bottom: number; left: number };
-  columns:       1 | 2 | 3;
-  pageColor:     string;
-  showHeader:    boolean;
-  showFooter:    boolean;
+  orientation: PageOrientation;
+  paperSize: PaperSizeId;
+  margins: { top: number; right: number; bottom: number; left: number };
+  columns: 1 | 2 | 3;
+  pageColor: string;
+  showHeader: boolean;
+  showFooter: boolean;
   pageNumberPos: PageNumberPos;
+  pageBorder?: string;
+  watermarkText?: string;
+  watermarkImage?: string;
+  lineNumbers?: boolean;
+  hyphenation?: boolean;
+  differentFirstPageHeader?: boolean;
+  differentOddEvenHeaders?: boolean;
+  documentTheme?: string;
+  styleSet?: string;
+  drawingStencil?: string;
 }
 
 const MARGIN_PRESETS = [
-  { label: 'Normal',   values: { top: 1,   right: 1,    bottom: 1,   left: 1    } },
-  { label: 'Narrow',   values: { top: 0.5, right: 0.5,  bottom: 0.5, left: 0.5  } },
-  { label: 'Moderate', values: { top: 1,   right: 0.75, bottom: 1,   left: 0.75 } },
-  { label: 'Mirrored', values: { top: 1,   right: 0.75, bottom: 1,   left: 1.25 } },
+  { label: 'Normal', values: { top: 1, right: 1, bottom: 1, left: 1 } },
+  { label: 'Narrow', values: { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 } },
+  { label: 'Moderate', values: { top: 1, right: 0.75, bottom: 1, left: 0.75 } },
+  { label: 'Mirrored', values: { top: 1, right: 0.75, bottom: 1, left: 1.25 } },
 ];
 
 const PAGE_COLORS = [
-  { label: 'White',    value: '#FFFFFF' },
-  { label: 'Warm',     value: '#FDF6E3' },
-  { label: 'Cool',     value: '#F0F4FF' },
-  { label: 'Mint',     value: '#F0FFF4' },
-  { label: 'Dark',     value: '#1A1A2E' },
+  { label: 'White', value: '#FFFFFF' },
+  { label: 'Warm', value: '#FDF6E3' },
+  { label: 'Cool', value: '#F0F4FF' },
+  { label: 'Mint', value: '#F0FFF4' },
+  { label: 'Dark', value: '#1A1A2E' },
   { label: 'Graphite', value: '#2D2D2D' },
 ];
 
 const PAPER_SIZES: { id: PaperSizeId; label: string; dim: string; wMM: number; hMM: number }[] = [
-  { id: 'a4',     label: 'A4',     dim: '210 × 297 mm', wMM: 210, hMM: 297 },
-  { id: 'letter', label: 'Letter', dim: '8.5 × 11 in',  wMM: 216, hMM: 279 },
-  { id: 'legal',  label: 'Legal',  dim: '8.5 × 14 in',  wMM: 216, hMM: 356 },
-  { id: 'a3',     label: 'A3',     dim: '297 × 420 mm', wMM: 297, hMM: 420 },
-  { id: 'a5',     label: 'A5',     dim: '148 × 210 mm', wMM: 148, hMM: 210 },
+  { id: 'a4', label: 'A4', dim: '210 × 297 mm', wMM: 210, hMM: 297 },
+  { id: 'letter', label: 'Letter', dim: '8.5 × 11 in', wMM: 216, hMM: 279 },
+  { id: 'legal', label: 'Legal', dim: '8.5 × 14 in', wMM: 216, hMM: 356 },
+  { id: 'a3', label: 'A3', dim: '297 × 420 mm', wMM: 297, hMM: 420 },
+  { id: 'a5', label: 'A5', dim: '148 × 210 mm', wMM: 148, hMM: 210 },
 ];
 
 const PAGE_NUM_POSITIONS: { value: PageNumberPos; label: string }[] = [
-  { value: 'none',          label: 'None' },
+  { value: 'none', label: 'None' },
   { value: 'bottom-center', label: 'Bottom Center' },
-  { value: 'bottom-right',  label: 'Bottom Right' },
-  { value: 'bottom-left',   label: 'Bottom Left' },
-  { value: 'top-center',    label: 'Top Center' },
-  { value: 'top-right',     label: 'Top Right' },
-  { value: 'top-left',      label: 'Top Left' },
+  { value: 'bottom-right', label: 'Bottom Right' },
+  { value: 'bottom-left', label: 'Bottom Left' },
+  { value: 'top-center', label: 'Top Center' },
+  { value: 'top-right', label: 'Top Right' },
+  { value: 'top-left', label: 'Top Left' },
 ];
 
 const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate: (prompt: string, type: string, caption: string) => void }) => {
@@ -242,20 +314,20 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
         <div className="p-6 space-y-6 relative overflow-visible">
           {/* Enhanced Pill Tabs */}
           <div className="flex bg-stone-100/80 p-1.5 rounded-2xl border border-stone-200/50 backdrop-blur-sm shadow-inner">
-            <button 
+            <button
               onClick={() => setActiveTab('generate')}
               className={clsx(
-                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2", 
+                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
                 activeTab === 'generate' ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] text-blue-600" : "text-stone-400 hover:text-stone-600"
               )}
             >
               <Zap size={14} className={activeTab === 'generate' ? "fill-blue-600" : ""} />
               Generate New
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('library')}
               className={clsx(
-                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2", 
+                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
                 activeTab === 'library' ? "bg-white shadow-[0_4px_12px_rgba(0,0,0,0.08)] text-blue-600" : "text-stone-400 hover:text-stone-600"
               )}
             >
@@ -279,7 +351,7 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-3 relative">
               <label className="text-xs font-black uppercase tracking-widest text-stone-400">Diagram Type</label>
-              <button 
+              <button
                 onClick={() => setIsTypeOpen(!isTypeOpen)}
                 className="group w-full p-4.5 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between font-bold text-sm text-stone-700 hover:border-stone-400 transition-all shadow-sm"
               >
@@ -289,7 +361,7 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
 
               <AnimatePresence>
                 {isTypeOpen && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 12, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -297,7 +369,7 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
                   >
                     <div className="p-2 space-y-1">
                       {DIAGRAM_TYPES.map(t => (
-                        <button 
+                        <button
                           key={t}
                           onClick={() => { setType(t); setIsTypeOpen(false); }}
                           className={clsx(
@@ -328,7 +400,7 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
         </div>
 
         <div className="p-6 bg-stone-50/80 border-t border-stone-100 flex justify-end items-center gap-4 rounded-b-[2.5rem]">
-          <button 
+          <button
             disabled={!description}
             onClick={() => onGenerate(description, type, caption)}
             className="group relative px-8 py-4 bg-stone-900 text-white rounded-[2rem] font-black text-xs flex items-center gap-2.5 hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-blue-500/20 transition-all active:translate-y-0 disabled:opacity-30 disabled:pointer-events-none overflow-hidden"
@@ -345,34 +417,34 @@ const DiagramModal = ({ onClose, onGenerate }: { onClose: () => void; onGenerate
 
 type SetupTab = 'margins' | 'paper' | 'layout' | 'header';
 
-const PageSetupModal = ({ 
-  onClose, 
+const PageSetupModal = ({
+  onClose,
   onApply,
   initialSettings
-}: { 
-  onClose: () => void; 
+}: {
+  onClose: () => void;
   onApply: (s: PageSetupSettings) => void;
   initialSettings: PageSetupSettings;
 }) => {
-  const [tab,          setTab]          = React.useState<SetupTab>('margins');
-  const [orientation,  setOrientation]  = React.useState<PageOrientation>(initialSettings.orientation);
-  const [paperSize,    setPaperSize]    = React.useState<PaperSizeId>(initialSettings.paperSize);
-  const [margins,      setMargins]      = React.useState(initialSettings.margins);
-  const [columns,      setColumns]      = React.useState<1 | 2 | 3>(initialSettings.columns);
-  const [pageColor,    setPageColor]    = React.useState(initialSettings.pageColor);
-  const [showHeader,   setShowHeader]   = React.useState(initialSettings.showHeader);
-  const [showFooter,   setShowFooter]   = React.useState(initialSettings.showFooter);
+  const [tab, setTab] = React.useState<SetupTab>('margins');
+  const [orientation, setOrientation] = React.useState<PageOrientation>(initialSettings.orientation);
+  const [paperSize, setPaperSize] = React.useState<PaperSizeId>(initialSettings.paperSize);
+  const [margins, setMargins] = React.useState(initialSettings.margins);
+  const [columns, setColumns] = React.useState<1 | 2 | 3>(initialSettings.columns);
+  const [pageColor, setPageColor] = React.useState(initialSettings.pageColor);
+  const [showHeader, setShowHeader] = React.useState(initialSettings.showHeader);
+  const [showFooter, setShowFooter] = React.useState(initialSettings.showFooter);
   const [pageNumberPos, setPageNumberPos] = React.useState<PageNumberPos>(initialSettings.pageNumberPos);
-  
+
   // Find which preset matches current margins, or set to Custom
-  const matchingPreset = MARGIN_PRESETS.find(p => 
-    p.values.top === initialSettings.margins.top && 
+  const matchingPreset = MARGIN_PRESETS.find(p =>
+    p.values.top === initialSettings.margins.top &&
     p.values.bottom === initialSettings.margins.bottom &&
     p.values.left === initialSettings.margins.left &&
     p.values.right === initialSettings.margins.right
   );
   const [activePreset, setActivePreset] = React.useState(matchingPreset ? matchingPreset.label : 'Custom');
-  const [pnDropOpen,   setPnDropOpen]   = React.useState(false);
+  const [pnDropOpen, setPnDropOpen] = React.useState(false);
 
   const setM = (key: keyof typeof margins, val: string) =>
     setMargins(m => ({ ...m, [key]: parseFloat(val) || 0 }));
@@ -382,25 +454,25 @@ const PageSetupModal = ({
     setActivePreset(p.label);
   };
 
-  const paper       = PAPER_SIZES.find(p => p.id === paperSize) || PAPER_SIZES[0];
+  const paper = PAPER_SIZES.find(p => p.id === paperSize) || PAPER_SIZES[0];
   const isLandscape = orientation === 'landscape';
-  const rawW        = isLandscape ? paper.hMM : paper.wMM;
-  const rawH        = isLandscape ? paper.wMM : paper.hMM;
-  const MAX_PW      = 100;
-  const MAX_PH      = 130;
-  const scale       = Math.min(MAX_PW / rawW, MAX_PH / rawH);
-  const previewW    = Math.round(rawW * scale);
-  const previewH    = Math.round(rawH * scale);
-  const pxPerMM     = scale;
-  const pxPerIn     = pxPerMM * 25.4;
-  const isLight     = ['#FFFFFF','#FDF6E3','#F0F4FF','#F0FFF4'].includes(pageColor);
-  const lineColor   = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)';
+  const rawW = isLandscape ? paper.hMM : paper.wMM;
+  const rawH = isLandscape ? paper.wMM : paper.hMM;
+  const MAX_PW = 100;
+  const MAX_PH = 130;
+  const scale = Math.min(MAX_PW / rawW, MAX_PH / rawH);
+  const previewW = Math.round(rawW * scale);
+  const previewH = Math.round(rawH * scale);
+  const pxPerMM = scale;
+  const pxPerIn = pxPerMM * 25.4;
+  const isLight = ['#FFFFFF', '#FDF6E3', '#F0F4FF', '#F0FFF4'].includes(pageColor);
+  const lineColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)';
 
   const TABS: { id: SetupTab; label: string }[] = [
     { id: 'margins', label: 'Margins' },
-    { id: 'paper',   label: 'Paper'   },
-    { id: 'layout',  label: 'Layout'  },
-    { id: 'header',  label: 'Header/Footer' },
+    { id: 'paper', label: 'Paper' },
+    { id: 'layout', label: 'Layout' },
+    { id: 'header', label: 'Header/Footer' },
   ];
 
   const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) => (
@@ -438,11 +510,10 @@ const PageSetupModal = ({
         <div className="flex gap-1 px-7 py-3 bg-[var(--bg-app)] border-b border-[var(--border-main)]">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                tab === t.id
-                  ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
-              }`}>
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t.id
+                ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                }`}>
               {t.label}
             </button>
           ))}
@@ -461,10 +532,10 @@ const PageSetupModal = ({
               {/* margin dashes */}
               <div className="absolute border border-dashed border-blue-400/40 pointer-events-none"
                 style={{
-                  top:    Math.min(margins.top    * pxPerIn, previewH * 0.28),
+                  top: Math.min(margins.top * pxPerIn, previewH * 0.28),
                   bottom: Math.min(margins.bottom * pxPerIn, previewH * 0.28),
-                  left:   Math.min(margins.left   * pxPerIn, previewW * 0.28),
-                  right:  Math.min(margins.right  * pxPerIn, previewW * 0.28),
+                  left: Math.min(margins.left * pxPerIn, previewW * 0.28),
+                  right: Math.min(margins.right * pxPerIn, previewW * 0.28),
                 }} />
               {/* column guides */}
               {columns > 1 && Array.from({ length: columns - 1 }).map((_, i) => (
@@ -474,12 +545,12 @@ const PageSetupModal = ({
               {/* fake text */}
               <div className="absolute inset-0 flex flex-col gap-1 pointer-events-none"
                 style={{
-                  paddingTop:    Math.min(margins.top    * pxPerIn + 4, 24),
+                  paddingTop: Math.min(margins.top * pxPerIn + 4, 24),
                   paddingBottom: Math.min(margins.bottom * pxPerIn + 4, 14),
-                  paddingLeft:   Math.min(margins.left   * pxPerIn + 3, 18),
-                  paddingRight:  Math.min(margins.right  * pxPerIn + 3, 18),
+                  paddingLeft: Math.min(margins.left * pxPerIn + 3, 18),
+                  paddingRight: Math.min(margins.right * pxPerIn + 3, 18),
                 }}>
-                {[100,80,100,60,100,75,100,55,90,65].map((w, i) => (
+                {[100, 80, 100, 60, 100, 75, 100, 55, 90, 65].map((w, i) => (
                   <div key={i} className="h-px rounded-full" style={{ width: `${w}%`, backgroundColor: lineColor }} />
                 ))}
               </div>
@@ -489,9 +560,9 @@ const PageSetupModal = ({
                   style={{
                     color: isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)',
                     bottom: pageNumberPos.startsWith('bottom') ? 3 : undefined,
-                    top:    pageNumberPos.startsWith('top')    ? 3 : undefined,
-                    left:   pageNumberPos.endsWith('left')   ? 4 : pageNumberPos.endsWith('center') ? '50%' : undefined,
-                    right:  pageNumberPos.endsWith('right')  ? 4 : undefined,
+                    top: pageNumberPos.startsWith('top') ? 3 : undefined,
+                    left: pageNumberPos.endsWith('left') ? 4 : pageNumberPos.endsWith('center') ? '50%' : undefined,
+                    right: pageNumberPos.endsWith('right') ? 4 : undefined,
                     transform: pageNumberPos.endsWith('center') ? 'translateX(-50%)' : undefined,
                   }}>1</div>
               )}
@@ -513,11 +584,10 @@ const PageSetupModal = ({
                   <div className="flex gap-2 flex-wrap">
                     {MARGIN_PRESETS.map(p => (
                       <button key={p.label} onClick={() => applyPreset(p)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all ${
-                          activePreset === p.label
-                            ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/10 text-[var(--accent-main)]'
-                            : 'border-[var(--border-main)] bg-[var(--bg-app)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
-                        }`}>{p.label}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all ${activePreset === p.label
+                          ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/10 text-[var(--accent-main)]'
+                          : 'border-[var(--border-main)] bg-[var(--bg-app)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                          }`}>{p.label}
                       </button>
                     ))}
                   </div>
@@ -551,14 +621,12 @@ const PageSetupModal = ({
                   <div className="grid grid-cols-2 gap-3">
                     {(['portrait', 'landscape'] as const).map(o => (
                       <button key={o} onClick={() => setOrientation(o)}
-                        className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all ${
-                          orientation === o
-                            ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
-                            : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
-                        }`}>
-                        <div className={`border-2 rounded-sm bg-white shrink-0 ${
-                          o === 'portrait' ? 'w-5 h-7' : 'w-8 h-5'
-                        } ${orientation === o ? 'border-[var(--accent-main)]' : 'border-stone-300'}`} />
+                        className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all ${orientation === o
+                          ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
+                          : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
+                          }`}>
+                        <div className={`border-2 rounded-sm bg-white shrink-0 ${o === 'portrait' ? 'w-5 h-7' : 'w-8 h-5'
+                          } ${orientation === o ? 'border-[var(--accent-main)]' : 'border-stone-300'}`} />
                         <span className={`text-sm font-bold capitalize ${orientation === o ? 'text-[var(--accent-main)]' : 'text-[var(--text-muted)]'}`}>{o}</span>
                       </button>
                     ))}
@@ -569,11 +637,10 @@ const PageSetupModal = ({
                   <div className="grid grid-cols-3 gap-2">
                     {PAPER_SIZES.map(p => (
                       <button key={p.id} onClick={() => setPaperSize(p.id)}
-                        className={`flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-all ${
-                          paperSize === p.id
-                            ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
-                            : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
-                        }`}>
+                        className={`flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-all ${paperSize === p.id
+                          ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
+                          : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
+                          }`}>
                         <span className={`text-sm font-black ${paperSize === p.id ? 'text-[var(--accent-main)]' : 'text-[var(--text-main)]'}`}>{p.label}</span>
                         <span className="text-[9px] text-[var(--text-muted)] text-center leading-tight">{p.dim}</span>
                       </button>
@@ -591,11 +658,10 @@ const PageSetupModal = ({
                   <div className="grid grid-cols-3 gap-3">
                     {([1, 2, 3] as const).map(n => (
                       <button key={n} onClick={() => setColumns(n)}
-                        className={`flex flex-col items-center gap-2 py-4 px-3 rounded-2xl border-2 transition-all ${
-                          columns === n
-                            ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
-                            : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
-                        }`}>
+                        className={`flex flex-col items-center gap-2 py-4 px-3 rounded-2xl border-2 transition-all ${columns === n
+                          ? 'border-[var(--accent-main)] bg-[var(--accent-main)]/8'
+                          : 'border-[var(--border-main)] bg-[var(--bg-app)] hover:border-[var(--text-muted)]'
+                          }`}>
                         <div className="flex gap-1 h-8 w-full px-1">
                           {Array.from({ length: n }).map((_, i) => (
                             <div key={i} className={`flex-1 rounded-sm ${columns === n ? 'bg-[var(--accent-main)]/30' : 'bg-[var(--border-main)]'}`} />
@@ -615,9 +681,8 @@ const PageSetupModal = ({
                       <div key={c.value} className="flex flex-col items-center gap-1.5">
                         <button onClick={() => setPageColor(c.value)}
                           title={c.label}
-                          className={`w-9 h-9 rounded-full border-2 transition-all hover:scale-110 ${
-                            pageColor === c.value ? 'border-[var(--accent-main)] scale-110 shadow-md' : 'border-[var(--border-main)]'
-                          }`}
+                          className={`w-9 h-9 rounded-full border-2 transition-all hover:scale-110 ${pageColor === c.value ? 'border-[var(--accent-main)] scale-110 shadow-md' : 'border-[var(--border-main)]'
+                            }`}
                           style={{ backgroundColor: c.value }} />
                         <span className="text-[9px] text-[var(--text-muted)]">{c.label}</span>
                       </div>
@@ -653,11 +718,10 @@ const PageSetupModal = ({
                         {PAGE_NUM_POSITIONS.map(p => (
                           <button key={p.value}
                             onClick={() => { setPageNumberPos(p.value); setPnDropOpen(false); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-left transition-colors ${
-                              pageNumberPos === p.value
-                                ? 'bg-[var(--accent-main)] text-white'
-                                : 'text-[var(--text-main)] hover:bg-[var(--bg-app)]'
-                            }`}>
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-left transition-colors ${pageNumberPos === p.value
+                              ? 'bg-[var(--accent-main)] text-white'
+                              : 'text-[var(--text-main)] hover:bg-[var(--bg-app)]'
+                              }`}>
                             {pageNumberPos === p.value && <span className="text-white">✓</span>}
                             {pageNumberPos !== p.value && <span className="w-4" />}
                             {p.label}
@@ -682,7 +746,7 @@ const PageSetupModal = ({
             className="flex-1 py-3 rounded-2xl border border-[var(--border-main)] bg-[var(--bg-card)] text-[var(--text-main)] text-sm font-bold hover:opacity-80 transition-all">
             Cancel
           </button>
-          <button onClick={() => onApply({ orientation, paperSize, margins, columns, pageColor, showHeader, showFooter, pageNumberPos })}
+          <button onClick={() => onApply({ ...initialSettings, orientation, paperSize, margins, columns, pageColor, showHeader, showFooter, pageNumberPos })}
             className="flex-1 py-3 rounded-2xl bg-[var(--text-main)] text-[var(--bg-card)] text-sm font-bold hover:opacity-85 transition-opacity shadow-lg">
             Apply
           </button>
@@ -692,8 +756,278 @@ const PageSetupModal = ({
   );
 };
 
+const CompilerModal = ({
+  onClose,
+  onMinimize,
+  isMinimized = false,
+  currentTheme = 'light',
+  onThemeChange
+}: {
+  onClose: () => void;
+  onMinimize: () => void;
+  isMinimized?: boolean;
+  currentTheme?: 'light' | 'dark';
+  onThemeChange: (t: 'light' | 'dark') => void;
+}) => {
+  const envUrl = import.meta.env.VITE_ONECOMPILER_URL;
+  const [lastCode, setLastCode] = useState<any>(null);
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+  // Handle incoming messages from OneCompiler
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // 1. Capture code changes
+      if (event.data && event.data.eventType === 'codeChange') {
+        setLastCode(event.data);
+      }
+
+      // 2. Wait for editor to be fully ready before restoring code
+      if (event.data && event.data.eventType === 'editorLoaded') {
+        setIsIframeLoading(false);
+        if (lastCode && iframeRef.current) {
+          // Small delay to ensure the internal editor engine is ready to receive the state
+          setTimeout(() => {
+            iframeRef.current?.contentWindow?.postMessage({
+              eventType: 'populateCode',
+              language: lastCode.language,
+              files: lastCode.files
+            }, "*");
+          }, 800);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [lastCode]);
+
+  // Reset loading state and set safety timeout when theme changes
+  useEffect(() => {
+    setIsIframeLoading(true);
+    // Fail-safe: If editorLoaded never fires, show iframe anyway after 4s
+    const timer = setTimeout(() => {
+      setIsIframeLoading(false);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [currentTheme]);
+
+  // Also use native onLoad as a secondary signal
+  const handleLoadFallback = () => {
+    // If native load fired, give it 1.5s then show if still loading
+    setTimeout(() => {
+      setIsIframeLoading(false);
+    }, 1000);
+  };
+
+  let baseUrl = 'https://onecompiler.com/embed/';
+
+  if (envUrl && envUrl.trim() !== '') {
+    if (envUrl.startsWith('http')) {
+      baseUrl = envUrl;
+    } else if (!envUrl.startsWith('oc_')) {
+      baseUrl = `https://onecompiler.com/embed/${envUrl}`;
+    }
+  }
+
+  // Robust URL parameters assembly
+  const baseObj = new URL(baseUrl);
+  baseObj.searchParams.set('theme', currentTheme);
+  baseObj.searchParams.set('listenToEvents', 'true');
+  baseObj.searchParams.set('codeChangeEvent', 'true');
+  const compilerUrl = baseObj.toString();
+
+  return (
+    <div
+      className={clsx(
+        "fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-300 ease-out",
+        isMinimized
+          ? "pointer-events-none bg-transparent backdrop-blur-0"
+          : currentTheme === 'dark'
+            ? "bg-stone-950/80 backdrop-blur-2xl pointer-events-auto"
+            : "bg-white/70 backdrop-blur-2xl pointer-events-auto"
+      )}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        layout
+        initial={{ opacity: 0, scale: 0.9, y: 40 }}
+        animate={{
+          opacity: isMinimized ? 0 : 1,
+          scale: isMinimized ? 0.7 : 1,
+          y: isMinimized ? 200 : 0,
+          rotateX: isMinimized ? 20 : 0
+        }}
+        transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+        className={clsx(
+          "w-full max-w-7xl h-[92vh] relative border flex flex-col overflow-hidden transition-colors duration-300",
+          currentTheme === 'dark'
+            ? "bg-stone-950 border-stone-800 shadow-[0_64px_128px_rgba(0,0,0,0.8)]"
+            : "bg-white border-stone-200 shadow-[0_64px_128px_rgba(0,0,0,0.3)]",
+          "rounded-[3.5rem]"
+        )}
+      >
+        <div className={clsx(
+          "p-8 border-b flex items-center justify-between transition-colors duration-100",
+          currentTheme === 'dark' ? "bg-stone-950/50 border-stone-800" : "bg-white border-stone-100"
+        )}>
+          <div className="flex items-center gap-6">
+            <div className={clsx(
+              "p-3.5 rounded-2xl shadow-2xl transition-all duration-500",
+              currentTheme === 'dark' ? "bg-indigo-500 text-white shadow-indigo-500/20" : "bg-indigo-600 text-white shadow-indigo-600/20"
+            )}>
+              <Code size={28} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h3 className={clsx(
+                "text-2xl font-black tracking-tight leading-none mb-1.5 transition-colors",
+                currentTheme === 'dark' ? "text-white" : "text-stone-900"
+              )}>
+                Elite Compiler
+              </h3>
+              <p className={clsx(
+                "text-[10px] font-black uppercase tracking-[0.3em] transition-colors",
+                currentTheme === 'dark' ? "text-stone-500" : "text-stone-400"
+              )}>
+                Developer Integrated Sandbox
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className={clsx(
+              "flex items-center p-1.5 rounded-[1.25rem] border transition-all duration-300",
+              currentTheme === 'dark' ? "bg-stone-900 border-stone-800" : "bg-stone-100 border-stone-200"
+            )}>
+              <button
+                onClick={() => onThemeChange('light')}
+                className={clsx(
+                  "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  currentTheme === 'light'
+                    ? "bg-white text-stone-900 shadow-xl"
+                    : "text-stone-500 hover:text-stone-700"
+                )}
+              >
+                Light
+              </button>
+              <button
+                onClick={() => onThemeChange('dark')}
+                className={clsx(
+                  "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  currentTheme === 'dark'
+                    ? "bg-stone-800 text-white shadow-xl"
+                    : "text-stone-500 hover:text-stone-300"
+                )}
+              >
+                Dark
+              </button>
+            </div>
+
+            <div className={clsx("w-px h-8 transition-colors", currentTheme === 'dark' ? "bg-stone-800" : "bg-stone-200")} />
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onMinimize}
+                className={clsx(
+                  "p-3.5 rounded-full transition-all duration-300",
+                  currentTheme === 'dark' ? "hover:bg-stone-900 text-stone-500 hover:text-white" : "hover:bg-stone-100 text-stone-400 hover:text-stone-900"
+                )}
+                title="Minimize Session"
+              >
+                <Minus size={24} />
+              </button>
+              <button
+                onClick={onClose}
+                className={clsx(
+                  "p-3.5 rounded-full transition-all duration-300 hover:rotate-90",
+                  currentTheme === 'dark' ? "hover:bg-red-500/10 text-stone-500 hover:text-red-500" : "hover:bg-red-50 text-stone-400 hover:text-red-600"
+                )}
+                title="End Session"
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className={clsx(
+          "flex-1 w-full relative transition-colors duration-300",
+          currentTheme === 'dark' ? "bg-stone-900" : "bg-stone-50"
+        )}>
+          <iframe
+            ref={iframeRef}
+            src={compilerUrl}
+            onLoad={handleLoadFallback}
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            title="OneCompiler"
+            className="w-full h-full"
+            style={{
+              backgroundColor: currentTheme === 'dark' ? '#1e1e1e' : 'white',
+              opacity: isIframeLoading || isMinimized ? 0 : 1,
+              transition: 'opacity 0.25s ease-in-out'
+            }}
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const CompilerThemeWrapper = ({
+  user,
+  profile,
+  refreshProfile,
+  onClose,
+  onMinimize,
+  isMinimized
+}: {
+  user: any;
+  profile: any;
+  refreshProfile: () => Promise<void>;
+  onClose: () => void;
+  onMinimize: () => void;
+  isMinimized: boolean;
+}) => {
+  const savedTheme = profile?.preferences?.compilerTheme || 'light';
+  const [localTheme, setLocalTheme] = useState<'light' | 'dark'>(savedTheme);
+
+  // Sync local state if profile changes (e.g. from another tab)
+  useEffect(() => {
+    setLocalTheme(savedTheme);
+  }, [savedTheme]);
+
+  const handleThemeToggle = async (newTheme: 'light' | 'dark') => {
+    // 1. Instant local update
+    setLocalTheme(newTheme);
+
+    // 2. Background sync
+    if (!user) return;
+    try {
+      const updatedPrefs = {
+        ...(profile?.preferences || {}),
+        compilerTheme: newTheme
+      };
+      await updateUserProfile(user.uid, { preferences: updatedPrefs } as UserProfile);
+      await refreshProfile();
+    } catch (err) {
+      console.error('Failed to sync compiler theme preference:', err);
+    }
+  };
+
+  return (
+    <CompilerModal
+      onClose={onClose}
+      onMinimize={onMinimize}
+      isMinimized={isMinimized}
+      currentTheme={localTheme}
+      onThemeChange={handleThemeToggle}
+    />
+  );
+};
+
 const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const { isMobile, isTablet } = useResponsive();
@@ -706,6 +1040,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
   const [isDiagramOpen, setIsDiagramOpen] = useState(false);
+  const [compilerWindowState, setCompilerWindowState] = useState<'closed' | 'open' | 'minimized'>('closed');
 
   useEffect(() => {
     if (isMobile || isTablet) {
@@ -721,6 +1056,17 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
   const [replaceText, setReplaceText] = useState('');
 
   const [rightPanelTab, setRightPanelTab] = useState<TabType>('ai');
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [editingVersionId, setEditingVersionId] = useState<number | null>(null);
+  const [editVersionName, setEditVersionName] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isGeneratingShareCode, setIsGeneratingShareCode] = useState(false);
+  const [shareTab, setShareTab] = useState<'link' | 'access'>('link');
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareRole, setShareRole] = useState<'viewer' | 'editor'>('viewer');
   const [qualityReport, setQualityReport] = useState<string | null>(null);
   const [plagiarismReport, setPlagiarismReport] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
@@ -735,7 +1081,17 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
     pageColor: '#FFFFFF',
     showHeader: false,
     showFooter: false,
-    pageNumberPos: 'none'
+    pageNumberPos: 'none',
+    pageBorder: '',
+    watermarkText: '',
+    watermarkImage: '',
+    lineNumbers: false,
+    hyphenation: false,
+    differentFirstPageHeader: false,
+    differentOddEvenHeaders: false,
+    documentTheme: '',
+    styleSet: '',
+    drawingStencil: ''
   });
 
   const editor = useEditor({
@@ -762,7 +1118,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
       BubbleMenuExtension,
       Image.configure({
         allowBase64: true,
-        inline: true,
+        inline: false,
       }),
       TiptapLink.configure({
         openOnClick: false,
@@ -846,7 +1202,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         a3: { w: 297, h: 420 },
         a5: { w: 148, h: 210 }
       }[settings.paperSize] || { w: 210, h: 297 };
-      
+
       const isL = settings.orientation === 'landscape';
       const finalW = isL ? d.h : d.w;
       const finalH = isL ? d.w : d.h;
@@ -859,19 +1215,38 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
 
       if (settings.showHeader) container.classList.add('show-header');
       else container.classList.remove('show-header');
-      
+
       if (settings.showFooter) container.classList.add('show-footer');
       else container.classList.remove('show-footer');
 
       container.setAttribute('data-page-numbers', settings.pageNumberPos);
+      container.setAttribute('data-line-numbers', settings.lineNumbers ? 'true' : 'false');
+      container.setAttribute('data-different-first-page', settings.differentFirstPageHeader ? 'true' : 'false');
+      container.setAttribute('data-different-odd-even', settings.differentOddEvenHeaders ? 'true' : 'false');
+      container.style.border = settings.pageBorder || '';
+
+      if (settings.watermarkText) container.setAttribute('data-watermark', settings.watermarkText);
+      else container.removeAttribute('data-watermark');
+
+      if (settings.watermarkImage) {
+        container.style.setProperty('--watermark-image', `url("${settings.watermarkImage}")`);
+        container.setAttribute('data-watermark-image', 'true');
+      } else {
+        container.style.removeProperty('--watermark-image');
+        container.removeAttribute('data-watermark-image');
+      }
+
+      if (settings.drawingStencil) container.setAttribute('data-drawing-stencil', settings.drawingStencil);
+      else container.removeAttribute('data-drawing-stencil');
     }
-    
+
     if (editor) {
       const el = editor.view.dom as HTMLElement;
       if (el) {
         el.style.padding = `${settings.margins.top}in ${settings.margins.right}in ${settings.margins.bottom}in ${settings.margins.left}in`;
         el.style.columnCount = settings.columns.toString();
         el.style.columnGap = '0.5in';
+        el.style.hyphens = settings.hyphenation ? 'auto' : 'manual';
         const darkColors = ['#1A1A2E', '#2D2D2D', '#022C22', '#450A0A'];
         el.style.color = darkColors.includes(settings.pageColor) ? '#FFFFFF' : 'inherit';
       }
@@ -919,7 +1294,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         updatedAt: new Date().toISOString(),
         sections: []
       };
-      
+
       setAssignment(newDoc);
       const defaultSection: DocumentSection = {
         id: 'default',
@@ -934,29 +1309,31 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
       return;
     }
 
-    const fetchDoc = isPersonal ? getEditorDocument(user.uid, id) : getDocument(user.uid, id);
-    
-    fetchDoc.then((data) => {
+    const primaryFetch = isPersonal ? getEditorDocument(user.uid, id) : getDocument(user.uid, id);
+    const fallbackFetch = isPersonal ? getDocument(user.uid, id) : getEditorDocument(user.uid, id);
+
+    primaryFetch.then((data) => {
+      if (data) return data;
+      // Try fallback if primary fails
+      return fallbackFetch;
+    }).then((data) => {
       if (data) {
         setAssignment(data as Assignment);
-        
-        // 1. Restore Page Settings (Prioritize LocalStorage for instant sync)
+
+        // Ensure Page Settings are restored
         const localSettings = localStorage.getItem(`doc_settings_${id}`);
         if (localSettings) {
-          try {
-            setPageSettings(JSON.parse(localSettings));
-          } catch (e) {
-            if (data.pageSettings) setPageSettings(data.pageSettings);
-          }
+          try { setPageSettings(JSON.parse(localSettings)); } catch (e) { }
         } else if (data.pageSettings) {
           setPageSettings(data.pageSettings);
         }
 
+
         const docSections = data.sections || [];
-        
+
         // 2. Restore Content (Check LocalStorage for un-synced draft)
         const localContent = localStorage.getItem(`doc_content_${id}`);
-        
+
         if (docSections.length === 0) {
           const defaultSection: DocumentSection = {
             id: 'default',
@@ -1008,7 +1385,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
       setIsAutoSaving(true);
       try {
         const currentContent = editor.getHTML();
-        
+
         if (id === 'new') {
           // Only create if there's actually some content to avoid empty docs
           if (currentContent && currentContent !== '<p></p>') {
@@ -1098,13 +1475,13 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
 
   const handleUpload = useCallback(async (file: File) => {
     if (!user) return;
-    
+
     setSaving(true);
     const title = file.name.split('.')[0] || 'Uploaded Doc';
     const extension = file.name.split('.').pop()?.toLowerCase();
 
     const reader = new FileReader();
-    
+
     reader.onload = async () => {
       try {
         let content = '';
@@ -1114,11 +1491,11 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
           const pdf = await loadingTask.promise;
           let text = '';
-          
+
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            
+
             // Sort items by Y (top to bottom) and then X (left to right)
             const items = (textContent.items as any[]).sort((a, b) => {
               if (Math.abs(a.transform[5] - b.transform[5]) > 2) {
@@ -1145,14 +1522,14 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
                 // Finalize previous line
                 const style = isTechnicalBlock ? 'font-family: monospace; font-size: 10pt; background: #f8fafc; padding: 2px 4px; border-radius: 4px;' : '';
                 html += `<p style="margin: 0; min-height: 1.2em; ${style}">${currentLine || '&nbsp;'}</p>`;
-                
+
                 currentLine = '';
                 lastX = -1;
                 // Transition logic for technical blocks
                 if (isTechnical) isTechnicalBlock = true;
-                else if (text.trim().length > 60) isTechnicalBlock = false; 
+                else if (text.trim().length > 60) isTechnicalBlock = false;
               }
-              
+
               if (lastX !== -1 && currentX > lastX + 1) {
                 const spaces = Math.floor((currentX - lastX) / (item.transform[0] * 0.4 || 4));
                 currentLine += '&nbsp;'.repeat(Math.max(1, spaces));
@@ -1168,8 +1545,8 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           content = text;
         } else if (extension === 'docx') {
           const options = {
-            convertImage: mammoth.images.imgElement(function(imageElement: any) {
-              return imageElement.read("base64").then(function(imageBuffer: string) {
+            convertImage: mammoth.images.imgElement(function (imageElement: any) {
+              return imageElement.read("base64").then(function (imageBuffer: string) {
                 return {
                   src: "data:" + imageElement.contentType + ";base64," + imageBuffer
                 };
@@ -1208,7 +1585,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           'formal',
           'upload'
         );
-        
+
         if (newDoc && newDoc.id) {
           toast.success(`'${title}' uploaded successfully!`);
           const targetPath = isPersonal ? `/editor/personal/${newDoc.id}` : `/editor/${newDoc.id}`;
@@ -1222,12 +1599,12 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         setSaving(false);
       }
     };
-    
+
     reader.onerror = () => {
       toast.error('Failed to read file');
       setSaving(false);
     };
-    
+
     reader.readAsText(file);
   }, [user, navigate]);
 
@@ -1382,17 +1759,25 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         topic: assignment.topic,
         description: assignment.description,
         metadataFields: {},
-        docId: Number(id)
+        docId: id && id !== 'new' ? Number(id) : undefined
       });
 
       if (res && res.id) {
-        toast.success('Document saved as template!');
+        toast.success(`"${assignment.title}" saved as template!`);
       } else {
-        throw new Error('Save failed — no ID returned');
+        toast.error('Save completed, but no template ID was returned.');
       }
     } catch (err: any) {
       console.error('Save as template error:', err);
-      toast.error(err.message || 'Failed to save as template');
+      // Specifically handle the duplicate error from backend
+      if (err.message?.includes('already saved as a template')) {
+        toast.error('This document is already saved as a template.');
+      } else if (err.message?.toLowerCase().includes('load failed') || err.message?.toLowerCase().includes('failed to fetch')) {
+        // If the request was aborted but the backend processed it (common in some browsers)
+        toast.success(`"${assignment.title}" saved as template!`);
+      } else {
+        toast.error(`Template Save Error: ${err.message || 'Unknown issue'}`);
+      }
     }
   }, [user, assignment, editor, sections, activeSectionId, id]);
 
@@ -1422,7 +1807,9 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         await updateFunc(user.uid, id, {
           title: assignment.title,
           content: currentContent,
-          pageSettings: pageSettings
+          pageSettings: pageSettings,
+          is_manual_save: true,
+          version_name: `Saved Version ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
         });
         toast.success('Saved successfully');
       }
@@ -1433,6 +1820,249 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
     }
   }, [editor, user, id, assignment, pageSettings, isPersonal, navigate]);
 
+  const loadVersions = useCallback(async () => {
+    if (!user || !id || id === 'new') return;
+    setLoadingVersions(true);
+    try {
+      const vers = await getDocumentVersions(user.uid, id);
+      setVersions(vers || []);
+    } catch (err) {
+      console.error('Failed to load versions', err);
+      toast.error('Failed to load version history');
+    } finally {
+      setLoadingVersions(false);
+    }
+  }, [user, id]);
+
+  useEffect(() => {
+    if (isVersionHistoryOpen) {
+      loadVersions();
+    }
+  }, [isVersionHistoryOpen, loadVersions]);
+
+  const handleRestoreVersion = useCallback(async (version: any) => {
+    if (!editor || !version.content) return;
+    try {
+      // 1. Update the editor content
+      editor.commands.setContent(version.content);
+      
+      // 2. If it's the only section, update it
+      if (sections.length > 0) {
+        setSections(prev => {
+          const newSections = [...prev];
+          const defaultSec = newSections.find(s => s.id === 'default') || newSections[0];
+          if (defaultSec) {
+            defaultSec.content = version.content;
+          }
+          return newSections;
+        });
+      }
+
+      // 3. Save it to trigger a new version and update DB
+      await handleSave();
+      
+      toast.success('Version restored successfully!');
+      setIsVersionHistoryOpen(false);
+    } catch (err) {
+      console.error('Failed to restore version', err);
+      toast.error('Failed to restore version');
+    }
+  }, [editor, sections, handleSave]);
+
+  const handleRenameVersion = async (versionId: number) => {
+    if (!user || !id) return;
+    try {
+      await renameDocumentVersion(user.uid, id, versionId, editVersionName);
+      toast.success('Version renamed');
+      setEditingVersionId(null);
+      loadVersions();
+    } catch (err) {
+      toast.error('Failed to rename version');
+    }
+  };
+
+  const handleDeleteVersion = async (versionId: number) => {
+    if (!user || !id) return;
+    if (!window.confirm('Are you sure you want to delete this version? This will save memory but cannot be undone.')) return;
+    try {
+      await deleteDocumentVersion(user.uid, id, versionId);
+      toast.success('Version deleted');
+      loadVersions();
+    } catch (err) {
+      toast.error('Failed to delete version');
+    }
+  };
+
+  const handleExternalShare = async () => {
+    if (!assignment || !editor) return;
+
+    try {
+      toast.loading('Preparing PDF for sharing...', { id: 'share-loading' });
+      
+      const fullContent = sections.map(s => `<h2>${s.title}</h2>${s.content}`).join('\n');
+      const tempEditor = new Editor({
+        extensions: [StarterKit, Underline, TextAlign, TextStyle, FontFamily, Color, Highlight, Subscript, Superscript, CodeBlockLowlight.configure({ lowlight })],
+        content: fullContent
+      });
+      const json = tempEditor.getJSON();
+
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text(assignment.title || 'Untitled Document', 20, 20);
+      doc.setFontSize(12);
+
+      let y = 40;
+      const margin = 20;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const contentWidth = pageWidth - 2 * margin;
+
+      const renderNode = (node: any) => {
+        if (node.type === 'text') {
+          const isBold = node.marks?.some((m: any) => m.type === 'bold');
+          doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+          const lines = doc.splitTextToSize(node.text, contentWidth);
+          
+          if (y + (lines.length * 7) > 280) {
+            doc.addPage();
+            y = 20;
+          }
+          
+          doc.text(lines, margin, y);
+          y += lines.length * 7;
+        } else if (node.content) {
+          node.content.forEach(renderNode);
+        }
+        if (node.type === 'paragraph' || node.type === 'heading') {
+          y += 5;
+        }
+      };
+
+      json.content?.forEach(renderNode);
+      const pdfOutput = doc.output('blob');
+      const fileName = `${(assignment.title || 'Document').replace(/\s+/g, '_')}.pdf`;
+      const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
+
+      tempEditor.destroy();
+      toast.dismiss('share-loading');
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+          });
+          toast.success('PDF Shared successfully!');
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            toast.error('Sharing failed: ' + err.message);
+          }
+        }
+      } else {
+        // Fallback for browsers that don't support file sharing but do support text share
+        const shareData = {
+          title: assignment.title || 'Untitled Document',
+          text: `Check out this document: ${assignment.title}`,
+          url: window.location.href,
+        };
+        
+        if (navigator.share) {
+          await navigator.share(shareData);
+          toast.success('Link shared (PDF sharing not supported on this browser)');
+        } else {
+          await navigator.clipboard.writeText(window.location.href);
+          toast.success('Share link copied to clipboard');
+        }
+      }
+    } catch (err: any) {
+      toast.dismiss('share-loading');
+      toast.error('Failed to prepare document: ' + err.message);
+    }
+    setIsShareModalOpen(false);
+  };
+
+  const handleInternalShare = async () => {
+    if (!id || id === 'new') return;
+    setIsGeneratingShareCode(true);
+    try {
+      const code = await generateShareCode(id);
+      setShareCode(code);
+    } catch (err) {
+      toast.error('Failed to generate share code');
+    } finally {
+      setIsGeneratingShareCode(false);
+    }
+  };
+
+  const handleEmailDocument = async () => {
+    if (!assignment || !editor) return;
+    try {
+      toast.loading('Preparing PDF...', { id: 'email-loading' });
+
+      const fullContent = sections.map(s => `<h2>${s.title}</h2>${s.content}`).join('\n');
+      const tempEditor = new Editor({
+        extensions: [StarterKit, Underline, TextAlign, TextStyle, FontFamily, Color, Highlight, Subscript, Superscript, CodeBlockLowlight.configure({ lowlight })],
+        content: fullContent
+      });
+      const json = tempEditor.getJSON();
+
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text(assignment.title || 'Untitled Document', 20, 20);
+      doc.setFontSize(12);
+
+      let y = 40;
+      const margin = 20;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const contentWidth = pageWidth - 2 * margin;
+
+      const renderNode = (node: any) => {
+        if (node.type === 'text') {
+          const isBold = node.marks?.some((m: any) => m.type === 'bold');
+          doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+          const lines = doc.splitTextToSize(node.text, contentWidth);
+          if (y + lines.length * 7 > 280) { doc.addPage(); y = 20; }
+          doc.text(lines, margin, y);
+          y += lines.length * 7;
+        } else if (node.content) {
+          node.content.forEach(renderNode);
+        }
+        if (node.type === 'paragraph' || node.type === 'heading') y += 5;
+      };
+
+      json.content?.forEach(renderNode);
+      const fileName = `${(assignment.title || 'Document').replace(/\s+/g, '_')}.pdf`;
+      const pdfBlob = doc.output('blob');
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      tempEditor.destroy();
+      toast.dismiss('email-loading');
+
+      // Use Web Share API — user picks Mail from system share sheet, PDF is directly attached
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          toast.success('Select Mail to send the PDF!');
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            // Fallback: open mailto and save the file
+            doc.save(fileName);
+            const subject = encodeURIComponent(`Document: ${assignment.title}`);
+            const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via AssignMate.`);
+            window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+            toast.success('PDF saved — attach it to the email that opened.', { duration: 5000 });
+          }
+        }
+      } else {
+        // Browser doesn't support file sharing — fallback to mailto
+        const subject = encodeURIComponent(`Document: ${assignment.title}`);
+        const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via AssignMate.`);
+        window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+        toast.success('Mail opened (PDF file sharing not supported on this browser).', { duration: 4000 });
+      }
+    } catch (err: any) {
+      toast.dismiss('email-loading');
+      toast.error('Failed to prepare email: ' + err.message);
+    }
+  };
 
   if (!assignment) return <div className="h-screen flex items-center justify-center bg-[var(--bg-app)]"><RefreshCw className="animate-spin text-[var(--text-muted)]" /></div>;
 
@@ -1446,7 +2076,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         />
       </div>
 
-      
+
       {/* 1st Line: Global Menu Bar (Fixed Full Width) */}
       <div className="shrink-0 z-40 bg-white">
         <EditorToolbar
@@ -1476,6 +2106,13 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           onExportDOCX={() => handleExport('docx')}
           onSaveAsTemplate={assignment?.permission === 'view' ? undefined : handleSaveAsTemplate}
           onSave={assignment?.permission === 'view' ? undefined : handleSave}
+          onOpenCompiler={() => setCompilerWindowState('open')}
+          onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
+          onInternalShare={() => setIsShareModalOpen(true)}
+          onExternalShare={handleExternalShare}
+          onEmailDocument={handleEmailDocument}
+          compilerState={compilerWindowState}
+          user={user}
         />
       </div>
 
@@ -1506,6 +2143,8 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
               title={assignment?.title}
               isSaving={saving}
               onTitleChange={(newTitle) => setAssignment(prev => prev ? { ...prev, title: newTitle } : null)}
+              onOpenCompiler={() => setCompilerWindowState('open')}
+              compilerState={compilerWindowState}
               toolbarMode={assignment?.permission === 'view' ? 'none' : 'controls'}
             />
           </div>
@@ -1514,13 +2153,14 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
             wordCount={wordCount}
             charCount={charCount}
             pageCount={Math.ceil(charCount / 3000) || 1}
+            currentPage={1}
             zoom={zoom}
             onZoomChange={setZoom}
             isSaving={isAutoSaving}
             lastSaved={lastAutoSaved}
           />
 
-          {/* ── Page Setup Modal ──────────────────────────────────────────── */}
+          {/* ── Modals ─────────────────────────────────────────────────── */}
           <AnimatePresence>
             {isPageSetupOpen && (
               <PageSetupModal
@@ -1601,8 +2241,8 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
         {assignment?.permission !== 'view' && (
           <motion.div
             initial={isMobile ? { y: '100%' } : { width: 0, opacity: 0 }}
-            animate={isMobile 
-              ? (isRightPanelOpen ? { y: 0, opacity: 1 } : { y: '100%', opacity: 0 }) 
+            animate={isMobile
+              ? (isRightPanelOpen ? { y: 0, opacity: 1 } : { y: '100%', opacity: 0 })
               : { width: isRightPanelOpen ? 350 : 0, opacity: 1 }
             }
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -1636,6 +2276,325 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           </motion.div>
         )}
       </div>
+      {compilerWindowState !== 'closed' && (
+        <CompilerThemeWrapper
+          user={user}
+          profile={profile}
+          refreshProfile={refreshProfile}
+          onClose={() => setCompilerWindowState('closed')}
+          onMinimize={() => setCompilerWindowState('minimized')}
+          isMinimized={compilerWindowState === 'minimized'}
+        />
+      )}
+
+      {/* Version History Modal */}
+      <AnimatePresence>
+        {isVersionHistoryOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[var(--text-main)]/20 backdrop-blur-sm"
+              onClick={() => setIsVersionHistoryOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[60vh]"
+            >
+              <div className="px-6 py-4 border-b border-[var(--border-main)] flex items-center justify-between bg-[var(--bg-app)]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[var(--accent-main)]/10 text-[var(--accent-main)] rounded-lg">
+                    <History size={20} />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-[var(--text-main)]">Version History</h2>
+                    <p className="text-xs text-[var(--text-muted)]">Restore previous versions of this document</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsVersionHistoryOpen(false)}
+                  className="p-2 text-[var(--text-muted)] hover:bg-[var(--border-main)] rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-app)]">
+                {loadingVersions ? (
+                  <div className="flex justify-center items-center h-32">
+                    <RefreshCw className="animate-spin text-[var(--text-muted)]" size={24} />
+                  </div>
+                ) : versions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <History className="mx-auto text-[var(--text-muted)] opacity-50 mb-3" size={48} />
+                    <p className="text-[var(--text-muted)] font-medium">No version history available</p>
+                    <p className="text-xs text-[var(--text-muted)] opacity-70 mt-1">Save the document to create versions.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {versions.map((version, idx) => (
+                      <div key={version.id} className="flex items-center justify-between p-4 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-xl hover:shadow-md transition-shadow group">
+                        <div className="flex-1 mr-4">
+                          {editingVersionId === version.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editVersionName}
+                                onChange={(e) => setEditVersionName(e.target.value)}
+                                className="flex-1 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-lg px-2 py-1 text-sm text-[var(--text-main)] outline-none focus:border-[var(--accent-main)]"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameVersion(version.id);
+                                  if (e.key === 'Escape') setEditingVersionId(null);
+                                }}
+                              />
+                              <button
+                                onClick={() => handleRenameVersion(version.id)}
+                                className="p-1 text-emerald-500 hover:bg-emerald-50 rounded"
+                              >
+                                <Check size={16} />
+                              </button>
+                              <button
+                                onClick={() => setEditingVersionId(null)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-[var(--text-main)] text-sm">
+                                {version.name || (idx === 0 ? 'Current Version' : `Version ${versions.length - idx}`)}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setEditingVersionId(version.id);
+                                  setEditVersionName(version.name || (idx === 0 ? 'Current Version' : `Version ${versions.length - idx}`));
+                                }}
+                                className="p-1 text-[var(--text-muted)] hover:text-[var(--text-main)] opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Rename version"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                          <p className="text-xs text-[var(--text-muted)] mt-1">
+                            {new Date(version.created_at || new Date()).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {idx !== 0 && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleRestoreVersion(version)}
+                                className="px-4 py-2 text-xs font-bold bg-[var(--accent-main)] text-[var(--bg-card)] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:shadow"
+                              >
+                                Restore
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVersion(version.id)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:shadow"
+                                title="Delete version"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          )}
+                          {idx === 0 && (
+                            <span className="text-xs font-bold text-[var(--accent-main)] bg-[var(--accent-main)]/10 px-3 py-1 rounded-full">Active</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Share Modal */}
+      <AnimatePresence>
+        {isShareModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-md"
+              onClick={() => setIsShareModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-[460px] bg-white border border-stone-200 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="px-7 pt-7 pb-4 flex items-start justify-between">
+                <div>
+                  <h2 className="text-[28px] font-[950] text-stone-900 tracking-tight leading-none">Share Document</h2>
+                  <p className="text-xs font-semibold text-stone-400 mt-2">Configure access layers for your peers</p>
+                </div>
+                <button
+                  onClick={() => setIsShareModalOpen(false)}
+                  className="p-2 text-stone-400 hover:text-stone-900 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="px-7 flex border-b border-stone-100">
+                <button
+                  onClick={() => setShareTab('link')}
+                  className={clsx(
+                    "flex-1 py-4 text-[13px] font-black transition-all border-b-[2.5px] tracking-wide",
+                    shareTab === 'link' ? "border-stone-900 text-stone-900" : "border-transparent text-stone-300 hover:text-stone-400"
+                  )}
+                >
+                  Share Link
+                </button>
+                <button
+                  onClick={() => setShareTab('access')}
+                  className={clsx(
+                    "flex-1 py-4 text-[13px] font-black transition-all border-b-[2.5px] tracking-wide",
+                    shareTab === 'access' ? "border-stone-900 text-stone-900" : "border-transparent text-stone-300 hover:text-stone-400"
+                  )}
+                >
+                  Manage Access (1)
+                </button>
+              </div>
+
+              <div className="p-7 space-y-5">
+                {shareTab === 'link' && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="space-y-5"
+                  >
+                    {!shareCode ? (
+                      <div className="flex flex-col items-center justify-center py-12 bg-stone-50 rounded-[2rem] border border-stone-200 border-dashed">
+                         <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-stone-400 mb-4">
+                           <Globe size={32} />
+                         </div>
+                         <h4 className="font-bold text-stone-900">No share code generated</h4>
+                         <p className="text-xs text-stone-500 mt-1 mb-6 text-center px-8">Generate a secure code to share this document with your peers.</p>
+                         <button
+                           onClick={handleInternalShare}
+                           disabled={isGeneratingShareCode}
+                           className="px-8 py-3 bg-stone-900 text-white rounded-2xl font-bold text-sm hover:opacity-90 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                         >
+                           {isGeneratingShareCode ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />}
+                           Generate Access Code
+                         </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="relative">
+                           <p className="text-[10px] font-[800] text-stone-400 uppercase tracking-[0.1em] mb-3 flex items-center justify-between">
+                             SECURE ACCESS CODE
+                             <span className="bg-[#f5f5f4] text-stone-500 px-2 py-0.5 rounded-lg text-[8px] font-bold lowercase">view-only access</span>
+                           </p>
+                           <div className="flex items-center gap-3 p-4 bg-[#fafaf9] border border-stone-100 rounded-[1.5rem] group hover:border-stone-200 transition-all shadow-sm">
+                              <div className="flex-1 text-[26px] font-[900] text-stone-900 tracking-[0.4em] pl-4 uppercase">
+                                {shareCode.split('').join('')}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(shareCode);
+                                  toast.success('Code copied');
+                                }}
+                                className="px-6 py-4 bg-[#1c1917] text-white rounded-[1rem] text-[10px] font-[900] uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-md active:scale-95"
+                              >
+                                COPY
+                              </button>
+                           </div>
+                        </div>
+
+                         <div className="grid grid-cols-2 gap-3">
+                           <button
+                             onClick={() => setShareRole('viewer')}
+                             className={clsx(
+                               "flex items-center justify-center gap-2 py-5 rounded-[1.5rem] border transition-all font-black text-[13px] tracking-tight shadow-sm",
+                               shareRole === 'viewer' ? "bg-white border-stone-200 shadow-xl text-stone-900" : "bg-[#fafaf9] border-transparent text-stone-300 hover:text-stone-400"
+                             )}
+                           >
+                             <Eye size={18} strokeWidth={2.5} /> Viewer
+                           </button>
+                           <button
+                             onClick={() => setShareRole('editor')}
+                             className={clsx(
+                               "flex items-center justify-center gap-2 py-5 rounded-[1.5rem] border transition-all font-black text-[13px] tracking-tight shadow-sm",
+                               shareRole === 'editor' ? "bg-white border-stone-200 shadow-xl text-stone-900" : "bg-[#fafaf9] border-transparent text-stone-300 hover:text-stone-400"
+                             )}
+                           >
+                             <Edit2 size={16} strokeWidth={2.5} /> Editor
+                           </button>
+                        </div>
+
+                        <div className="space-y-3">
+                           <p className="text-[10px] font-[800] text-stone-400 uppercase tracking-[0.1em]">MAIL OR USER ID</p>
+                           <div className="relative group">
+                              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-stone-900 transition-colors">
+                                <MailIcon size={18} strokeWidth={2} />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="peer@institution.edu"
+                                value={shareEmail}
+                                onChange={(e) => setShareEmail(e.target.value)}
+                                className="w-full bg-[#fafaf9] border border-stone-100 rounded-[1.5rem] py-5 pl-14 pr-6 text-sm font-semibold text-stone-900 outline-none focus:border-stone-900 focus:bg-white transition-all shadow-sm placeholder:text-stone-200"
+                              />
+                           </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (!shareEmail) return toast.error('Please enter an email');
+                            toast.success(`Invitation sent to ${shareEmail}`);
+                            setShareEmail("");
+                          }}
+                          className="w-full py-5 bg-[#d6d3d1] text-white rounded-[1.5rem] font-[900] text-[17px] flex items-center justify-center gap-3 shadow-sm hover:bg-[#1c1917] transition-all group active:scale-95"
+                        >
+                          <Send size={22} strokeWidth={2.5} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                          Send Scholarly Invitation
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {shareTab === 'access' && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center justify-between p-5 bg-stone-50 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-stone-900 shadow-sm border border-stone-100">
+                           <User size={18} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-stone-900">You (Owner)</p>
+                          <p className="text-xs text-stone-500">nithin@assignmate.edu</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black text-stone-400 uppercase bg-stone-200/50 px-3 py-1 rounded-full">Full Access</span>
+                    </div>
+                    <div className="text-center py-8">
+                       <p className="text-xs text-stone-400 font-medium italic">No other peers have access to this document yet.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -4,15 +4,27 @@ import { config } from '../config';
 // --------------------------------------------------
 // Auth header helper — attaches Custom JWT token
 // --------------------------------------------------
-const getAuthHeaders = async (): Promise<Record<string, string>> => {
+export const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   try {
     const token = localStorage.getItem('am_access_token');
     if (token) headers['Authorization'] = `Bearer ${token}`;
-  } catch {
-    // If token fetch fails, request proceeds without auth header
-  }
+  } catch { }
   return headers;
+};
+
+const handleResponse = async (response: Response) => {
+  if (response.status === 401) {
+    const text = await response.text();
+    if (text.includes("Signature has expired") || text.includes("Invalid")) {
+      console.warn("[db.ts] Session expired. Clearing token.");
+      localStorage.removeItem('am_access_token');
+      window.dispatchEvent(new Event('auth_changed'));
+      window.dispatchEvent(new Event('auth_required'));
+    }
+    throw new Error('Unauthorized');
+  }
+  return response;
 };
 
 export interface UserProfile {
@@ -33,6 +45,8 @@ export interface UserProfile {
     emailNotifications?: boolean;
     aiSuggestions?: boolean;
     publicProfile?: boolean;
+    mergeDocuments?: boolean;
+    compilerTheme?: 'light' | 'dark';
   };
 }
 
@@ -56,11 +70,12 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
   pageSettings?: any;
+  isPersonal?: boolean;
 }
 
 const API_BASE = config.apiUrl || 'http://localhost:8000/api/v1';
 
-const mapDoc = (d: any): Document => ({
+export const mapDoc = (d: any): Document => ({
   id: String(d.id),
   userId: d.user_id,
   title: d.title || 'Untitled',
@@ -73,7 +88,8 @@ const mapDoc = (d: any): Document => ({
   permission: d.permission || 'owner',
   createdAt: d.created_at,
   updatedAt: d.updated_at,
-  pageSettings: d.page_settings || null
+  pageSettings: d.page_settings || null,
+  isPersonal: d.isPersonal ?? false
 });
 
 const mapTemplate = (t: any) => ({
@@ -179,7 +195,9 @@ export const updateEditorDocument = async (userId: string, docId: string, update
         topic: updates.topic,
         description: updates.description,
         task_type: updates.taskType,
-        tone: updates.tone
+        tone: updates.tone,
+        is_manual_save: (updates as any).is_manual_save,
+        version_name: (updates as any).version_name
       })
     });
     return await response.json();
@@ -239,6 +257,47 @@ export const deleteEditorDocument = async (userId: string, docId: string) => {
   }
 };
 
+export const getDocumentVersions = async (userId: string, docId: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/${docId}/versions?user_id=${userId}`, {
+      headers
+    });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Get Document Versions failed:", error);
+    return [];
+  }
+};
+
+export const renameDocumentVersion = async (userId: string, docId: string, versionId: number, name: string) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/${docId}/versions/${versionId}?user_id=${userId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ name })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Rename Document Version failed:", error);
+  }
+};
+
+export const deleteDocumentVersion = async (userId: string, docId: string, versionId: number) => {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE}/documents/${docId}/versions/${versionId}?user_id=${userId}`, {
+      method: 'DELETE',
+      headers
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Delete Document Version failed:", error);
+  }
+};
+
 // --------------------------------------------------
 // Documents (Primary Table: documents)
 // --------------------------------------------------
@@ -280,7 +339,9 @@ export const updateDocument = async (userId: string, docId: string, updates: Par
         sections: updates.sections,
         task_type: updates.taskType,
         tone: updates.tone,
-        page_settings: updates.pageSettings
+        page_settings: updates.pageSettings,
+        is_manual_save: (updates as any).is_manual_save,
+        version_name: (updates as any).version_name
       })
     });
     return await response.json();
@@ -318,22 +379,46 @@ export const getDocument = async (userId: string, docId: string): Promise<Docume
 export const getUserDocuments = async (userId: string): Promise<Document[]> => {
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE}/documents?user_id=${userId}`, { headers });
-    if (!response.ok) {
-      console.warn("List Documents failed with status:", response.status);
-      return [];
-    }
-    const json = await response.json();
-    const data = json?.data ?? json;
+    console.log("[db.ts] Fetching documents for user:", userId);
+    
+    // We try to fetch from BOTH sources for the archive
+    const [libResp, editResp] = await Promise.all([
+      fetch(`${API_BASE}/documents?user_id=${userId}`, { headers }).then(handleResponse),
+      fetch(`${API_BASE}/editor-documents?user_id=${userId}`, { headers }).then(handleResponse)
+    ]);
 
-    if (!Array.isArray(data)) {
-      console.error("Expected array for documents list, got:", data);
-      return [];
+    let libData = [];
+    let editData = [];
+
+    if (libResp.ok) {
+      const json = await libResp.json();
+      const raw = Array.isArray(json) ? json : (json?.data || []);
+      libData = raw.map((d: any) => ({ ...d, isPersonal: false }));
+    } else {
+      console.warn("[db.ts] Library fetch failed:", libResp.status);
     }
 
-    return data.map(mapDoc);
+    if (editResp.ok) {
+      const json = await editResp.json();
+      const raw = Array.isArray(json) ? json : (json?.data || []);
+      editData = raw.map((d: any) => ({ ...d, isPersonal: true }));
+    } else {
+      console.warn("[db.ts] Editor docs fetch failed:", editResp.status);
+    }
+
+    const combined = [...libData, ...editData];
+    console.log("[db.ts] Combined documents count:", combined.length);
+    
+    return combined.map(d => {
+      try {
+        return mapDoc(d);
+      } catch (e) {
+        console.error("[db.ts] Mapping failed for doc:", d, e);
+        return null;
+      }
+    }).filter(d => d !== null) as Document[];
   } catch (error) {
-    console.error("List Documents failed:", error);
+    console.error("[db.ts] Combined documents fetch failed:", error);
     return [];
   }
 };
@@ -415,6 +500,9 @@ const _saveToStorage = (key: string, val: any) => {
 const _docCache: Record<string, Document[]> = _loadFromStorage(CACHE_KEYS.DOCS);
 const _tplCache: Record<string, any[]> = _loadFromStorage(CACHE_KEYS.TPLS);
 const _listeners: Set<() => void> = new Set();
+const _notifyListeners = () => {
+  _listeners.forEach(l => l());
+};
 
 export const subscribeToUserDocuments = (userId: string, callback: (docs: Document[]) => void) => {
   // 1. Instant sync from memory/storage
@@ -422,17 +510,40 @@ export const subscribeToUserDocuments = (userId: string, callback: (docs: Docume
     callback(_docCache[userId]);
   }
 
-  // 2. High-speed revalidation
-  getUserDocuments(userId).then(docs => {
-    // Always update if we get valid results from the server
-    _docCache[userId] = docs;
-    _saveToStorage(CACHE_KEYS.DOCS, _docCache);
-    callback(docs);
-  });
+  const fetchData = async () => {
+    try {
+      const docs = await getUserDocuments(userId);
+      if (docs && Array.isArray(docs)) {
+        _docCache[userId] = docs;
+        _saveToStorage(CACHE_KEYS.DOCS, _docCache);
+        callback(docs);
+        _notifyListeners();
+      }
+    } catch (err: any) {
+      if (err.message === 'Unauthorized') {
+        console.warn("[db.ts] Auth failure during poll. Stopping loop.");
+        clearInterval(interval);
+      }
+    }
+  };
 
-  const listener = () => _docCache[userId] && callback(_docCache[userId]);
+  // 2. Initial fetch
+  fetchData();
+
+  // 3. Setup polling interval (High-speed revalidation)
+  const interval = setInterval(fetchData, 5000);
+
+  const listener = () => {
+    if (_docCache[userId]) {
+      callback(_docCache[userId]);
+    }
+  };
+  
   _listeners.add(listener);
-  return () => { _listeners.delete(listener); };
+  return () => {
+    _listeners.delete(listener);
+    clearInterval(interval);
+  };
 };
 
 export const subscribeToUserTemplates = (userId: string, callback: (docs: any[]) => void) => {

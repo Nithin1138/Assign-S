@@ -2,7 +2,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 
 class Section(BaseModel):
-    heading: str
+    id: Optional[str] = None
+    title: str
     content: str
 
 class SaveRequest(BaseModel):
@@ -14,7 +15,10 @@ class SaveRequest(BaseModel):
     sections: Optional[List[Section]] = None
     task_type: str = "generate"
     tone: str = "neutral"
-    status: Optional[str] = "draft" # draft, generated, finalized
+    status: Optional[str] = "draft"
+    page_settings: Optional[Dict] = None
+    is_manual_save: Optional[bool] = False
+    version_name: Optional[str] = None
 
 from datetime import datetime
 
@@ -29,6 +33,7 @@ class DocumentResponse(BaseModel):
     task_type: Optional[str] = None
     tone: Optional[str] = None
     status: Optional[str] = "draft"
+    page_settings: Optional[Dict] = None
     share_code: Optional[str] = None
     permission: Optional[str] = "owner"
     created_at: Optional[datetime] = None
@@ -42,3 +47,16 @@ class AIRequest(BaseModel):
 
 class AIResponse(BaseModel):
     content: str
+
+class VersionRequest(BaseModel):
+    content: str
+
+class DocumentVersionResponse(BaseModel):
+    id: int
+    document_id: int
+    content: Optional[str] = None
+    name: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

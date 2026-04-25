@@ -32,12 +32,22 @@ const DashboardPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const handleReauth = () => {
+      navigate('/login');
+    };
+    window.addEventListener('auth_required', handleReauth);
+    return () => window.removeEventListener('auth_required', handleReauth);
+  }, [navigate]);
+
+  useEffect(() => {
     if (!user) return;
     getUserDocuments(user.uid).then((docs) => {
       setRecentDocs(docs.slice(0, 8) as Assignment[]);
       setLoading(false);
     }).catch(err => {
-      console.error("Failed to load documents:", err);
+      if (err.message !== 'Unauthorized') {
+        console.error("Failed to load documents:", err);
+      }
       setLoading(false);
     });
   }, [user]);
@@ -202,7 +212,7 @@ const DashboardPage = () => {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.05 * idx }}
-                      onClick={() => navigate(`/editor/${doc.id}`)}
+                      onClick={() => navigate(doc.isPersonal ? `/editor/personal/${doc.id}` : `/editor/${doc.id}`)}
                       className={clsx(
                         "group cursor-pointer p-8 rounded-[2.5rem] border border-[var(--border-main)] transition-all relative overflow-hidden flex flex-col h-64",
                         isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] shadow-sm hover:shadow-2xl hover:border-[var(--accent-main)]/20"

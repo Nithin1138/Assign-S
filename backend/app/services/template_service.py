@@ -3,6 +3,8 @@ from app.repositories import template_repo
 
 def save_template(db, req):
     template = template_repo.create_template(db, req)
+    if template == "ALREADY_EXISTS":
+        return "ALREADY_EXISTS"
     return template
 
 

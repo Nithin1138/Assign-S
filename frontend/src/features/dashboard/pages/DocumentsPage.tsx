@@ -69,16 +69,21 @@ const DocumentsPage = () => {
 
   useEffect(() => {
     const uid = user?.uid || offlineUid;
+    console.log("[DocumentsPage] Current UID:", uid);
     if (!uid) return;
     
+    setLoading(true);
+
     // Subscribe to personal documents with instant cache return
     const unsubDocs = subscribeToUserDocuments(uid, (docs) => {
+      console.log("[DocumentsPage] Received MyDocs:", docs.length);
       setMyDocs(docs as Assignment[]);
       setLoading(false); 
     });
 
     // Subscribe to shared documents with instant cache return
     const unsubShared = subscribeToSharedDocuments(uid, (docs) => {
+      console.log("[DocumentsPage] Received SharedDocs:", docs.length);
       setSharedDocs(docs as Assignment[]);
       setLoading(false);
     });
@@ -88,6 +93,15 @@ const DocumentsPage = () => {
       unsubShared();
     };
   }, [user, offlineUid]);
+
+  useEffect(() => {
+    const handleReauth = () => {
+      toast.error("Session expired. Please log in again.");
+      navigate('/login');
+    };
+    window.addEventListener('auth_required', handleReauth);
+    return () => window.removeEventListener('auth_required', handleReauth);
+  }, [navigate]);
 
   useEffect(() => {
     if (activeTab === 'shared' && user) {
@@ -114,12 +128,16 @@ const DocumentsPage = () => {
     }
   };
 
+  const isMergingEnabled = profile?.preferences?.mergeDocuments ?? true;
   const currentDocs = activeTab === 'my' ? myDocs : sharedDocs;
 
-  const filteredDocs = currentDocs.filter(d =>
-    d.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (d.topic && d.topic.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredDocs = currentDocs.filter(d => {
+    // If merging is disabled, hide "isPersonal" docs on this page
+    if (!isMergingEnabled && d.isPersonal) return false;
+
+    return d.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (d.topic && d.topic.toLowerCase().includes(searchTerm.toLowerCase()));
+  });
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -498,7 +516,7 @@ const DocumentsPage = () => {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.05 * idx }}
-                    onClick={() => navigate(`/editor/${doc.id}`)}
+                    onClick={() => navigate(doc.isPersonal ? `/editor/personal/${doc.id}` : `/editor/${doc.id}`)}
                     className="group relative h-72 flex flex-col overflow-visible rounded-[2.5rem] cursor-pointer"
                   >
                     {/* Premium Orbiting Border Effect */}
@@ -550,6 +568,14 @@ const DocumentsPage = () => {
                             <Clock size={12} strokeWidth={3} />
                             {new Date(doc.updatedAt).toLocaleDateString()}
                           </div>
+                          
+                          {isMergingEnabled && doc.isPersonal && (
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--accent-main)]/5 text-[var(--accent-main)] rounded-full border border-[var(--accent-main)]/10">
+                              <div className="w-1 h-1 rounded-full bg-[var(--accent-main)] animate-pulse" />
+                              Personal
+                            </div>
+                          )}
+
                           <div className="ml-auto opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                             <ChevronRight size={18} />
                           </div>
