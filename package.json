@@ -11,5 +11,10 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "@types/three": "^0.184.0",
+    "postprocessing": "^6.39.1",
+    "three": "^0.184.0"
   }
 }

@@ -82,7 +82,7 @@ import {
 } from '../../../shared/services/db';
 import { performTask, TaskType, AcademicTone } from '../../../shared/services/ai';
 import DocumentEditor from '../components/DocumentEditor';
-import EditorToolbar from '../components/EditorToolbar';
+import EditorToolbar, { SearchHighlight } from '../components/EditorToolbar';
 import EditorStatusBar from '../components/EditorStatusBar';
 import * as pdfjsLib from 'pdfjs-dist';
 import * as mammoth from 'mammoth';
@@ -1106,6 +1106,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           keepAttributes: false,
         },
       }),
+      SearchHighlight,
       CustomFormatting,
       FontFamily.configure(),
       Highlight.configure({ multicolor: true }),

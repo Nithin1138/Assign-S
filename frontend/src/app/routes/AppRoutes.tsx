@@ -5,6 +5,7 @@ import { RefreshCw } from 'lucide-react';
 
 // Public pages — loaded eagerly (they're the entry points)
 import LandingPage from '../../pages/LandingPage';
+import Landing2 from '../../pages/landing_2';
 import LoginPage from '../../features/auth/pages/LoginPage';
 import SignupPage from '../../features/auth/pages/SignupPage';
 
@@ -37,6 +38,7 @@ const AppRoutes = () => {
 
         {/* PUBLIC */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/landing-2" element={<Landing2 />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 

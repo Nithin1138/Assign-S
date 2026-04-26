@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 # Routers
-from app.api.routes import document_routes, user_routes, template_routes, auth_routes, editor_document_routes
+from app.api.routes import document_routes, user_routes, template_routes, auth_routes, editor_document_routes, waitlist_routes
 
 # DB
 from app.core.db_sync import sync_database
@@ -97,6 +97,12 @@ app.include_router(
     auth_routes.router,
     prefix="/api/v1/auth",
     tags=["Auth"]
+)
+
+app.include_router(
+    waitlist_routes.router,
+    prefix="/api/v1/waitlist",
+    tags=["Waitlist"]
 )
 
 

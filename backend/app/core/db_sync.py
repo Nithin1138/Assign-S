@@ -10,6 +10,7 @@ from app.models.shared_document import SharedDocument
 from app.models.document_version import DocumentVersion
 from app.models.template_log import TemplateLog
 from app.models.editor_document import EditorDocument
+from app.models.waitlist import WaitlistUser
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Editor } from '@tiptap/react';
+import { Editor, Extension } from '@tiptap/react';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -541,6 +543,77 @@ const ColorPicker = ({
 
 // ─── Find & Replace Popover ────────────────────────────────────────────────────
 
+// ─── Find & Replace Logic ───────────────────────────────────────────────────
+
+/**
+ * Custom extension to highlight all occurrences of a search term
+ */
+export const SearchHighlight = Extension.create({
+  name: 'searchHighlight',
+
+  addStorage() {
+    return {
+      searchTerm: '',
+    }
+  },
+
+  addCommands() {
+    return {
+      setSearchTerm: (term: string) => ({ editor, storage, dispatch }: any) => {
+        storage.searchTerm = term
+        // Force a re-render of decorations by dispatching an empty transaction
+        if (dispatch) {
+          dispatch(editor.state.tr.setMeta('searchHighlight', true))
+        }
+        return true
+      },
+    }
+  },
+
+  addProseMirrorPlugins() {
+    const extension = this
+    return [
+      new Plugin({
+        key: new PluginKey('searchHighlight'),
+        state: {
+          init() { return DecorationSet.empty },
+          apply(tr, oldState) {
+            const { searchTerm } = extension.storage
+            // Always recalculate if searchTerm exists or doc changed
+            if (searchTerm) {
+              const decorations: Decoration[] = []
+              const lowerSearch = searchTerm.toLowerCase()
+
+              tr.doc.descendants((node, pos) => {
+                if (node.isText && node.text) {
+                  let start = 0
+                  const text = node.text.toLowerCase()
+                  while ((start = text.indexOf(lowerSearch, start)) > -1) {
+                    decorations.push(
+                      Decoration.inline(pos + start, pos + start + searchTerm.length, {
+                        class: 'search-match-highlight',
+                        style: 'background-color: #facc15; color: #000; border-radius: 2px; box-shadow: 0 0 0 2px #facc15, 0 2px 4px rgba(0,0,0,0.2); font-weight: bold; position: relative; z-index: 10;'
+                      })
+                    )
+                    start += searchTerm.length
+                  }
+                }
+              })
+              return DecorationSet.create(tr.doc, decorations)
+            }
+            return DecorationSet.empty
+          },
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state)
+          },
+        },
+      }),
+    ]
+  },
+})
+
 const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => void }) => {
   const [find, setFind] = useState('');
   const [replace, setReplace] = useState('');
@@ -580,23 +653,20 @@ const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => 
   };
 
   const doFindAll = () => {
-    if (!find) return;
+    if (!find) {
+      (editor.commands as any).setSearchTerm('');
+      return;
+    }
     const matches = getMatches(find);
     setMatchCount(matches.length);
     if (matches.length > 0) {
       setMatchIndex(0);
-      // Tiptap/ProseMirror multi-selection requires a plugin or complex state.
-      // For now, we will use the native browser window.find('word', false, false, true) to highlight all if possible,
-      // or select the first one and provide the count. 
-      // Actually, standard Tiptap doesn't support disjoint multi-selection.
-      // We will scroll to the first one but track the total count.
-      const { from, to } = matches[0];
-      editor.chain().focus().setTextSelection({ from, to }).run();
-      const domNode = editor.view.domAtPos(from).node as HTMLElement;
-      domNode?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      // Use our custom extension to highlight ALL words
+      (editor.commands as any).setSearchTerm(find);
       
-      // Bonus: Trigger browser's native find for visual feedback of 'all' if supported
-      try { (window as any).find?.(find, false, false, true, false, true, false); } catch(e){}
+      // Also select the first one for focus
+      const { from, to } = matches[0];
+      editor.chain().focus().setTextSelection({ from, to }).scrollIntoView().run();
     }
   };
 
@@ -650,7 +720,13 @@ const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => 
             autoFocus
             placeholder="Find..."
             value={find}
-            onChange={e => { setFind(e.target.value); setMatchIndex(0); setMatchCount(0); }}
+            onChange={e => { 
+              const val = e.target.value;
+              setFind(val); 
+              setMatchIndex(0); 
+              setMatchCount(0); 
+              if (!val) (editor.commands as any).setSearchTerm('');
+            }}
             onKeyDown={e => { if (e.key === 'Enter') doFind('next'); }}
             onPointerDown={e => e.stopPropagation()}
             className="flex-1 min-w-0 h-8 px-3 text-xs border border-stone-200 rounded-xl outline-none focus:border-stone-800 transition-colors bg-stone-50 focus:bg-white"
@@ -662,13 +738,6 @@ const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => 
               className="h-8 px-2.5 text-xs bg-stone-900 text-white rounded-xl hover:bg-stone-700 font-bold transition-colors"
             >
               Find
-            </button>
-            <button
-              onPointerDown={e => e.stopPropagation()}
-              onClick={doFindAll}
-              className="h-8 px-2.5 text-xs border border-stone-200 rounded-xl hover:bg-stone-100 text-stone-700 font-bold transition-colors"
-            >
-              All
             </button>
           </div>
         </div>
@@ -2098,6 +2167,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
             <div className="flex-1" />
           </div>
+          {/* Find & Replace panel — floats below row 3, left-aligned */}
+          <AnimatePresence>
+            {findOpen && <FindReplacePanel editor={editor} onClose={() => setFindOpen(false)} />}
+          </AnimatePresence>
         </>
       )}
       <input
@@ -2108,11 +2181,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         accept=".txt,.md,.pdf,.docx"
       />
 
-      {/* Find & Replace panel — floats below entire toolbar, left-aligned. 
-          Only render in 'menu' mode to avoid duplicates when DocumentEditor also uses EditorToolbar */}
-      <AnimatePresence>
-        {findOpen && mode === 'menu' && <FindReplacePanel editor={editor} onClose={() => setFindOpen(false)} />}
-      </AnimatePresence>
     </div>
   );
 };
