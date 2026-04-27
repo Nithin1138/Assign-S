@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,6 +13,13 @@ import {
   FileText,
   Download,
   CheckCircle2,
+  GraduationCap,
+  Lock,
+  Play,
+  Volume2,
+  Settings,
+  Maximize,
+  MoreVertical,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/context/AuthContext';
 import clsx from 'clsx';
@@ -149,6 +156,67 @@ const Landing2 = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      }
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const current = videoRef.current.currentTime;
+      const total = videoRef.current.duration;
+      setProgress((current / total) * 100);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (videoRef.current) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const clickedPos = (x / rect.width) * videoRef.current.duration;
+      videoRef.current.currentTime = clickedPos;
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleAction = () => {
     setIsWaitlistModalOpen(true);
@@ -294,7 +362,7 @@ const Landing2 = () => {
           </AnimatePresence>
         </nav>
 
-        <section className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center pt-[12vh] pb-[8vh]">
+        <section className="relative min-h-screen overflow-hidden flex flex-col justify-center pt-[14vh] pb-[8vh]">
           {/* Background effects same as before */}
           <div className="absolute inset-0 pointer-events-none z-[1]">
             <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(rgba(255,255,255,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.22)_1px,transparent_1px)] [background-size:60px_60px]" />
@@ -307,15 +375,21 @@ const Landing2 = () => {
           <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-violet-400/10 to-transparent pointer-events-none z-[3]" />
 
           <div className="max-w-[1440px] w-[90%] mx-auto relative z-10">
-            <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
+              {/* Left: Text Content */}
+              <motion.div 
+                initial={{ opacity: 0, x: -30 }} 
+                animate={{ opacity: 1, x: 0 }} 
+                transition={{ duration: 0.8 }}
+                className="flex flex-col items-center text-center lg:items-center lg:text-center"
+              >
                 <span className="inline-block px-4 py-1.5 mb-8 bg-stone-900/80 text-violet-200 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase border border-violet-400/30 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
                   Academic Excellence Powered by AI
                 </span>
                 <h1
                   className="font-bold tracking-tighter text-stone-100 leading-[0.95] md:leading-[0.9]"
                   style={{
-                    fontSize: 'clamp(2.5rem, 8vw, 7.5rem)',
+                    fontSize: 'clamp(2.5rem, 6vw, 6.5rem)',
                     marginBottom: '3vh'
                   }}
                 >
@@ -325,16 +399,16 @@ const Landing2 = () => {
                   <span className="italic font-serif bg-gradient-to-r from-cyan-200 via-indigo-200 to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(56,189,248,0.4)]">confidence.</span>
                 </h1>
                 <p
-                  className="mx-auto text-stone-400 leading-relaxed font-medium text-center"
+                  className="text-stone-400 leading-relaxed font-medium text-center"
                   style={{
-                    fontSize: 'clamp(0.9rem, 1.4vw, 1.15rem)',
-                    maxWidth: '42vw',
+                    fontSize: 'clamp(0.9rem, 1.2vw, 1.1rem)',
+                    maxWidth: '520px',
                     marginBottom: '5vh'
                   }}
                 >
                   The professional writing suite designed specifically for students. Transform complex research into polished assignments with academic-grade AI.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-[4vh]">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
                   <BorderGlow
                     edgeSensitivity={30}
                     glowColor="40 80 80"
@@ -372,6 +446,160 @@ const Landing2 = () => {
                     </button>
                   </BorderGlow>
                 </div>
+
+                {/* Trust badges */}
+                <div className="flex flex-wrap items-center justify-center gap-8 mt-10">
+                  {[
+                    { icon: GraduationCap, label: 'Academic-Grade AI' },
+                    { icon: ShieldCheck, label: 'Plagiarism-Free' },
+                    { icon: Lock, label: 'Data Secure' },
+                  ].map((badge, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-stone-500">
+                      <badge.icon size={18} className="text-violet-400/70" />
+                      <span className="text-xs font-semibold tracking-wide">{badge.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Right: Enhanced iframe/Video Preview */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="relative hidden lg:block"
+              >
+                {/* Animated glow border */}
+                <div className="absolute -inset-[2px] rounded-[1.75rem] overflow-hidden pointer-events-none">
+                  <div className="absolute inset-0 bg-[conic-gradient(from_0deg,#c084fc,#f472b6,#38bdf8,#c084fc)] template-card-border-spin" style={{ width: '200%', height: '200%', top: '-50%', left: '-50%' }} />
+                </div>
+
+                {/* Glow effects behind the iframe */}
+                <div className="absolute -inset-6 bg-gradient-to-r from-violet-500/25 via-cyan-500/15 to-violet-500/25 rounded-[3rem] blur-[80px] pointer-events-none animate-pulse" style={{ animationDuration: '4s' }} />
+                
+                {/* iframe container */}
+                <div className="relative rounded-[1.5rem] overflow-hidden border border-stone-700/50 shadow-[0_20px_80px_rgba(139,92,246,0.15),0_8px_32px_rgba(0,0,0,0.5)] bg-stone-900/90 backdrop-blur-sm group/video">
+                  {/* Browser chrome mockup */}
+                  <div className="flex items-center gap-2 px-5 py-3 bg-stone-900/95 border-b border-stone-800/80">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                    </div>
+                    <div className="flex-1 ml-4">
+                      <div className="bg-stone-800/80 rounded-lg px-4 py-1.5 text-[11px] text-stone-500 font-mono max-w-[280px]">
+                        assignmate.ai/editor
+                      </div>
+                    </div>
+                  </div>
+                  {/* Video/iframe content area */}
+                  <div className="relative aspect-[16/10] bg-stone-950">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover cursor-pointer"
+                      src="https://vjs.zencdn.net/v/oceans.mp4"
+                      onClick={togglePlay}
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                    />
+                    {/* Play button overlay */}
+                    <div 
+                      className={clsx(
+                        "absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300",
+                        isPlaying ? "opacity-0" : "opacity-100"
+                      )}
+                    >
+                      <div className="w-16 h-16 rounded-full bg-violet-500/20 backdrop-blur-sm border border-violet-400/30 flex items-center justify-center shadow-[0_0_40px_rgba(139,92,246,0.3)]">
+                        <Play size={24} className="text-white ml-1" fill="white" />
+                      </div>
+                    </div>
+
+                    {/* Bottom Control Bar */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col gap-2 opacity-0 group-hover/video:opacity-100 transition-opacity duration-300">
+                      {/* Progress bar container */}
+                      <div 
+                        className="w-full h-1 bg-white/20 rounded-full relative group/progress cursor-pointer"
+                        onClick={handleSeek}
+                      >
+                        <div 
+                          className="absolute top-0 left-0 h-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.8)] transition-all duration-100" 
+                          style={{ width: `${progress}%` }}
+                        />
+                        <div 
+                          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover/progress:opacity-100 transition-opacity"
+                          style={{ left: `${progress}%`, marginLeft: '-6px' }}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <button onClick={togglePlay} className="focus:outline-none">
+                            {isPlaying ? (
+                              <div className="w-4 h-4 flex gap-1 items-center justify-center">
+                                <div className="w-1 h-4 bg-white" />
+                                <div className="w-1 h-4 bg-white" />
+                              </div>
+                            ) : (
+                              <Play size={16} className="text-white fill-white cursor-pointer hover:scale-110 transition-transform" />
+                            )}
+                          </button>
+                          <div className="text-[10px] font-mono text-white/80 tabular-nums">
+                            {formatTime(videoRef.current?.currentTime || 0)} / {formatTime(duration)}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <button onClick={toggleMute} className="focus:outline-none">
+                            {isMuted ? (
+                              <div className="relative">
+                                <Volume2 size={16} className="text-white/40" />
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-[1px] bg-white/60 rotate-45" />
+                              </div>
+                            ) : (
+                              <Volume2 size={16} className="text-white/80 cursor-pointer hover:text-white transition-colors" />
+                            )}
+                          </button>
+                          <button onClick={toggleFullscreen} className="focus:outline-none">
+                            <Maximize size={16} className="text-white/80 cursor-pointer hover:text-white transition-colors" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating accent elements */}
+                <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-violet-500/15 rounded-full blur-[50px] pointer-events-none" />
+                <div className="absolute -top-8 -left-8 w-40 h-40 bg-cyan-500/15 rounded-full blur-[60px] pointer-events-none" />
+
+                {/* "See AssignMate in action" handwritten text */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                  className="absolute -bottom-24 left-48 flex items-center gap-1.5"
+                >
+                  <div className="relative -top-4">
+                    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" className="text-violet-400/80">
+                      <path d="M45 45 Q 10 45, 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                      <path d="M4 22 L10 10 L16 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                  </div>
+                  <div className="relative group rotate-[-2deg]">
+                    <span className="text-violet-400/90 font-handwriting text-3xl tracking-wide block">See AssignMate in action</span>
+                    {/* Double Underline Effect */}
+                    <div className="absolute -bottom-1 left-0 w-full overflow-visible pointer-events-none rotate-[1deg]">
+                      <svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" className="text-violet-500/50">
+                        <path d="M1 5C30 4 60 7 99 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                        <path d="M3 8C35 7 65 9 97 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                      </svg>
+                    </div>
+                  </div>
+                </motion.div>
               </motion.div>
             </div>
           </div>
