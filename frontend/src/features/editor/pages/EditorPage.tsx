@@ -2047,7 +2047,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
             // Fallback: open mailto and save the file
             doc.save(fileName);
             const subject = encodeURIComponent(`Document: ${assignment.title}`);
-            const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via AssignMate.`);
+            const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via Doxio.`);
             window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
             toast.success('PDF saved — attach it to the email that opened.', { duration: 5000 });
           }
@@ -2055,7 +2055,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
       } else {
         // Browser doesn't support file sharing — fallback to mailto
         const subject = encodeURIComponent(`Document: ${assignment.title}`);
-        const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via AssignMate.`);
+        const body = encodeURIComponent(`Hi,\n\nPlease find the attached document "${assignment.title}".\n\nShared via Doxio.`);
         window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
         toast.success('Mail opened (PDF file sharing not supported on this browser).', { duration: 4000 });
       }
@@ -2581,7 +2581,7 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
                         </div>
                         <div>
                           <p className="font-bold text-sm text-stone-900">You (Owner)</p>
-                          <p className="text-xs text-stone-500">nithin@assignmate.edu</p>
+                          <p className="text-xs text-stone-500">nithin@doxio.edu</p>
                         </div>
                       </div>
                       <span className="text-[10px] font-black text-stone-400 uppercase bg-stone-200/50 px-3 py-1 rounded-full">Full Access</span>

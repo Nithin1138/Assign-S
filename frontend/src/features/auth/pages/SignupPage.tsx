@@ -127,7 +127,7 @@ const SignupPage = () => {
             <div className="w-12 h-12 bg-stone-900 rounded-2xl flex items-center justify-center shadow-xl shadow-stone-200">
               <Sparkles className="text-white" size={24} />
             </div>
-            <span className="text-2xl font-bold tracking-tighter">AssignMate</span>
+            <span className="text-2xl font-bold tracking-tighter">Doxio</span>
           </div>
 
           <div className="mb-12">
@@ -193,7 +193,7 @@ const SignupPage = () => {
 
           <div className="relative my-12">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-stone-100"></div></div>
-            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]"><span className="px-6 bg-stone-50 lg:bg-white text-stone-400">Join AssignMate</span></div>
+            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]"><span className="px-6 bg-stone-50 lg:bg-white text-stone-400">Join Doxio</span></div>
           </div>
 
           <button

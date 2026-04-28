@@ -930,7 +930,7 @@ const ProfilePage = () => {
                     <Aurora colorStops={['#818CF8', '#4F46E5', '#818CF8']} speed={0.1} />
                     <div className="relative z-10">
                       <GraduationCap className="mb-6 opacity-40" size={32} />
-                      <h4 className="text-2xl font-black uppercase tracking-tighter leading-none mb-2">AssignMate Lab</h4>
+                      <h4 className="text-2xl font-black uppercase tracking-tighter leading-none mb-2">Doxio Lab</h4>
                       <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-8">Scholarly Beta Access Enabled</p>
                       <button className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:scale-105 transition-all">
                         View Lab Metrics

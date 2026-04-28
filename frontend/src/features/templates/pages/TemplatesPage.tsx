@@ -707,7 +707,7 @@ const TemplatesPage = () => {
                                   sampleText = `CRITICAL CHALLENGES: The primary impediments discovered in this analysis include a lack of structural data and inconsistent procedural protocols. Key issues are listed below:`;
                                   isList = true;
                                 } else if (title.includes('ref') || title.includes('biblio')) {
-                                  sampleText = `[1] AssignMate Architecture Series. (2025). Structural Data Synthesis.\n[2] Doe, R. (2024). Multi-Phase Methodology Protocols.\n[3] University of AI. (2023). Professional Document Foundations.`;
+                                  sampleText = `[1] Doxio Architecture Series. (2025). Structural Data Synthesis.\n[2] Doe, R. (2024). Multi-Phase Methodology Protocols.\n[3] University of AI. (2023). Professional Document Foundations.`;
                                   isList = false;
                                 } else if (title.includes('result') || title.includes('finding')) {
                                   sampleText = `ANALYTICAL RESULTS: EMPIRICAL EVIDENCE REVEALS A DRAMATIC CORRELATION WITHIN THE SENSORY DOMAINS. QUANTITATIVE FINDINGS CLEARLY INDICATE A SUCCESSFUL PROTOCOL EXECUTION.`;

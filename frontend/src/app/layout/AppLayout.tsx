@@ -35,7 +35,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             >
               <Menu size={24} />
             </button>
-            <span className="font-bold text-[var(--text-main)] tracking-tight">AssignMate</span>
+            <span className="font-bold text-[var(--text-main)] tracking-tight">Doxio</span>
           </div>
         </header>
 

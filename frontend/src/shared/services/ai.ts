@@ -54,7 +54,7 @@ const getPrompt = (input: TaskInput): string => {
   const { task_type, topic, description, content, tone = "formal", selection, template, sections, studentName, regNo, course, institution } = input;
   const targetText = selection || content;
 
-  const baseContext = `You are an advanced academic writing assistant for the platform "AssignMate". 
+  const baseContext = `You are an advanced academic writing assistant for the platform "Doxio". 
   GENERAL RULES:
   - Always produce structured, academic, clean output.
   - Avoid unnecessary fluff.

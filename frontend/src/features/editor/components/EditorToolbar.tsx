@@ -1422,7 +1422,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <MenuItem icon={Download} label="Export DOCX" onClick={onExportDOCX || (() => { })} />
                 <MenuDivider />
                 <SubMenu icon={Share2} label="Share">
-                  <MenuItem icon={Globe} label="AssignMate Share" onClick={onInternalShare || (() => { })} />
+                  <MenuItem icon={Globe} label="Doxio Share" onClick={onInternalShare || (() => { })} />
                   <MenuItem icon={Monitor} label="External Share" onClick={onExternalShare || (() => { })} />
                 </SubMenu>
                 <MenuItem icon={Mail} label="Email Document" onClick={onEmailDocument || (() => { })} />

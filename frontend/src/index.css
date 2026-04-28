@@ -129,7 +129,7 @@
 }
 
 .template-card-border-spin {
-  animation: template-border-rotate 2.75s linear infinite;
+  animation: template-border-rotate 2.75s linear 1;
 }
 
 /* Tiptap Editor Styles */

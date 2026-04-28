@@ -138,7 +138,7 @@ const GeneratingLoader: React.FC<GeneratingLoaderProps> = ({ topic }) => {
 
       {/* Decorative Bottom Text */}
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 opacity-20">
-        <p className="text-[8px] font-mono uppercase tracking-[1em]">Protocol: ASSIGNMATE_GEN_V2.0</p>
+        <p className="text-[8px] font-mono uppercase tracking-[1em]">Protocol: DOXIO_GEN_V2.0</p>
       </div>
     </motion.div>
   );

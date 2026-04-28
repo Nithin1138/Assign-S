@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/context/AuthContext';
 import clsx from 'clsx';
-import Aurora from '../features/editor/components/Aurora';
+import TextType from '../shared/components/TextType/TextType';
 import DotField from '../shared/components/DotField';
 import GradualBlur from '../shared/components/GradualBlur/GradualBlur';
 import BorderGlow from '../shared/components/BorderGlow/BorderGlow';
@@ -31,9 +31,19 @@ import SplitText from '../shared/components/SplitText/SplitText';
 import LogoLoop from '../shared/components/LogoLoop/LogoLoop';
 import Hyperspeed from '../shared/components/Hyperspeed/Hyperspeed';
 import ShinyText from '../shared/components/ShinyText/ShinyText';
+import PillNav from '../shared/components/PillNav/PillNav';
+import AnimatedList from '../shared/components/AnimatedList/AnimatedList';
 import { Twitter, Linkedin, Instagram, Github, Mail, ArrowUpRight, Facebook } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Grainient from '../shared/components/Grainient/Grainient';
 import { config } from '../shared/config';
+
+const NAV_ITEMS = [
+  { label: 'Features', href: '#features' },
+  { label: 'Process', href: '#how-it-works' },
+  { label: 'Reviews', href: '#testimonials' },
+  { label: 'Pricing', href: '#pricing' }
+];
 
 const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [email, setEmail] = useState('');
@@ -43,7 +53,7 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    
+
     // Add a timeout to the fetch to prevent "infinite" loading
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -56,10 +66,10 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         toast.success("You're on the list!");
-        onClose(); 
+        onClose();
       } else {
         const errorData = await response.json().catch(() => ({}));
         toast.error(errorData.detail || "Something went wrong. Please try again.");
@@ -98,19 +108,21 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className="space-y-6">
-              <div className="w-16 h-16 bg-violet-500/20 rounded-2xl flex items-center justify-center border border-violet-500/30 mb-2">
-                <Sparkles className="text-violet-400" size={32} />
-              </div>
-              
-              <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center border border-violet-500/30 shrink-0">
+                  <GraduationCap className="text-violet-400" size={20} />
+                </div>
                 <h3 className="text-3xl font-bold tracking-tight text-white leading-tight">Get Early Access</h3>
+              </div>
+
+              <div className="space-y-2">
                 <p className="text-stone-400 leading-relaxed">
                   Generate complete assignments from your template in seconds.
                 </p>
                 <p className="text-xs text-stone-500 mt-2">
-                  Join the waitlist and we’ll notify you by email when we launch. Early users get 1 month Pro free.
+                  Join the waitlist and we’ll notify you by email when we launch. Early users get <span className="text-violet-400 font-bold underline underline-offset-4 decoration-violet-500/30">1 month Pro free</span>.
                 </p>
               </div>
 
@@ -155,6 +167,8 @@ const Landing2 = () => {
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('hero');
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
@@ -223,8 +237,48 @@ const Landing2 = () => {
   };
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrolled = window.scrollY > 50;
+          setIsScrolled(prev => {
+            if (prev !== scrolled) return scrolled;
+            return prev;
+          });
+
+          // Update scroll progress directly via DOM to avoid re-renders (FLASH smooth & precise)
+          if (progressBarRef.current) {
+            const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = totalHeight > 0 ? (window.scrollY / totalHeight) : 0;
+            progressBarRef.current.style.transform = `scaleX(${progress})`;
+          }
+
+          const sections = ['features', 'how-it-works', 'testimonials', 'pricing'];
+          const current = sections.find(section => {
+            const element = document.getElementById(section);
+            if (element) {
+              const rect = element.getBoundingClientRect();
+              return rect.top >= 0 && rect.top <= 300;
+            }
+            return false;
+          });
+
+          if (current) {
+            setActiveSection(prev => {
+              if (prev !== current) return current;
+              return prev;
+            });
+          } else if (window.scrollY < 200) {
+            setActiveSection(prev => {
+              if (prev !== 'hero') return 'hero';
+              return prev;
+            });
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -241,7 +295,7 @@ const Landing2 = () => {
         <div className="absolute inset-0 opacity-60 pointer-events-none">
           <DotField
             dotRadius={1.7}
-            dotSpacing={11}
+            dotSpacing={22}
             bulgeOnly={true}
             bulgeStrength={70}
             glowRadius={180}
@@ -256,130 +310,53 @@ const Landing2 = () => {
       </div>
 
       <div className="overflow-x-hidden relative min-h-screen w-full">
-        <nav
-          className={clsx(
-            "fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
-            isScrolled
-              ? "bg-stone-950/90 backdrop-blur-xl border-stone-800 py-3"
-              : "bg-transparent border-transparent py-5"
-          )}
-        >
-          <div className="w-full px-6 md:px-16 lg:px-20 flex items-center justify-between">
-            <div
-              className="flex items-center gap-3 cursor-pointer group"
-              onClick={() => navigate('/')}
-            >
-              <div className="w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3 shadow-lg shadow-stone-900/20">
-                <Sparkles className="text-stone-900" size={20} />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-stone-100">AssignMate</span>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-6 xl:gap-10 text-[11px] font-bold text-stone-400 uppercase tracking-[0.2em]">
-              <a href="#features" className="hover:text-stone-100 transition-all hover:tracking-[0.25em]">Features</a>
-              <a href="#how-it-works" className="hover:text-stone-100 transition-all hover:tracking-[0.25em]">Process</a>
-              <a href="#testimonials" className="hover:text-stone-100 transition-all hover:tracking-[0.25em]">Reviews</a>
-              <a href="#pricing" className="hover:text-stone-100 transition-all hover:tracking-[0.25em]">Pricing</a>
-            </div>
-
-            <div className="flex items-center gap-3 md:gap-6">
-              <div className="hidden md:flex items-center gap-3 md:gap-6">
-                {user ? (
-                  <button
-                    onClick={handleAction}
-                    className="px-6 py-2.5 bg-stone-100 text-stone-900 rounded-full text-sm font-bold hover:bg-white transition-all shadow-lg shadow-stone-900/30 active:scale-95"
-                  >
-                    Dashboard
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleAction}
-                      className="px-4 py-2 text-sm font-bold text-stone-400 hover:text-stone-100 transition-colors"
-                    >
-                      Log in
-                    </button>
-                    <button
-                      onClick={handleAction}
-                      className="px-6 py-2.5 bg-stone-100 text-stone-900 rounded-full text-sm font-bold hover:bg-white transition-all shadow-lg shadow-stone-900/30 active:scale-95"
-                    >
-                      Get Started
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 text-stone-400 hover:text-stone-100 transition-colors bg-stone-900/50 rounded-lg border border-stone-800"
-              >
-                {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {isMobileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="absolute top-full left-0 right-0 bg-stone-950/95 backdrop-blur-2xl border-b border-stone-800 p-8 lg:hidden shadow-2xl flex flex-col gap-8"
-              >
-                <div className="flex flex-col gap-6 text-[11px] font-bold text-stone-400 uppercase tracking-[0.2em]">
-                  <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-stone-100 transition-colors">Features</a>
-                  <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-stone-100 transition-colors">Process</a>
-                  <a href="#testimonials" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-stone-100 transition-colors">Reviews</a>
-                  <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-stone-100 transition-colors">Pricing</a>
-                </div>
-                <div className="pt-8 border-t border-stone-800 flex flex-col gap-4">
-                  {user ? (
-                    <button
-                      onClick={() => { handleAction(); setIsMobileMenuOpen(false); }}
-                      className="w-full py-4 bg-stone-100 text-stone-900 rounded-2xl font-bold text-sm shadow-xl shadow-stone-900/40"
-                    >
-                      Dashboard
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => { handleAction(); setIsMobileMenuOpen(false); }}
-                        className="w-full py-4 text-stone-100 font-bold border border-stone-800 rounded-2xl text-sm"
-                      >
-                        Log in
-                      </button>
-                      <button
-                        onClick={() => { handleAction(); setIsMobileMenuOpen(false); }}
-                        className="w-full py-4 bg-stone-100 text-stone-900 rounded-2xl font-bold text-sm shadow-xl shadow-stone-900/40"
-                      >
-                        Get Started
-                      </button>
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </nav>
+        <div className="z-50">
+          <PillNav
+            logo="/logo.png"
+            logoAlt="Doxio"
+            items={NAV_ITEMS}
+            activeHref={`#${activeSection}`}
+            baseColor="#ffffff"
+            pillColor="#0c0a09"
+            pillTextColor="#ffffff"
+            hoveredPillTextColor="#0c0a09"
+            className="shadow-2xl shadow-black/50"
+            scrolled={isScrolled}
+          />
+        </div>
 
         <section className="relative min-h-screen overflow-hidden flex flex-col justify-center pt-[14vh] pb-[8vh]">
-          {/* Background effects same as before */}
-          <div className="absolute inset-0 pointer-events-none z-[1]">
-            <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(rgba(255,255,255,0.22)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.22)_1px,transparent_1px)] [background-size:60px_60px]" />
-            <div className="absolute -top-24 left-1/4 w-80 h-80 rounded-full bg-violet-500/20 blur-[120px]" />
-            <div className="absolute top-1/3 right-0 w-[26rem] h-[26rem] rounded-full bg-cyan-400/15 blur-[140px]" />
+          {/* Global Background Elements */}
+          <div className="absolute inset-0 z-[1] opacity-60">
+            <Grainient
+              color1="#0A192F"
+              color2="#5dade2"
+              color3="#1C2A3A"
+              timeSpeed={0.25}
+              colorBalance={0.0}
+              warpStrength={0.8}
+              warpFrequency={3.0}
+              warpSpeed={2.0}
+              warpAmplitude={40.0}
+              blendAngle={45.0}
+              blendSoftness={0.1}
+              rotationAmount={200.0}
+              noiseScale={1.5}
+              grainAmount={0.05}
+              grainScale={1.5}
+              grainAnimated={true}
+              contrast={1.2}
+              zoom={1.0}
+            />
           </div>
-          <div className="absolute inset-0 z-[2] opacity-40">
-            <Aurora colorStops={['#14121F', '#2A2345', '#112534']} amplitude={1.0} blend={0.5} speed={0.4} />
-          </div>
-          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-violet-400/10 to-transparent pointer-events-none z-[3]" />
+          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-stone-950 to-transparent pointer-events-none z-[3]" />
 
           <div className="max-w-[1440px] w-[90%] mx-auto relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-16 items-center">
               {/* Left: Text Content */}
-              <motion.div 
-                initial={{ opacity: 0, x: -30 }} 
-                animate={{ opacity: 1, x: 0 }} 
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8 }}
                 className="flex flex-col items-center text-center lg:items-center lg:text-center"
               >
@@ -394,9 +371,30 @@ const Landing2 = () => {
                   }}
                 >
                   Write with<br />
-                  <span className="italic font-serif bg-gradient-to-r from-violet-200 via-indigo-200 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(139,92,246,0.45)]">precision.</span><br />
+                  <TextType
+                    text="precision."
+                    as="span"
+                    className="italic font-serif bg-gradient-to-r from-violet-200 via-indigo-200 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(139,92,246,0.45)]"
+                    typingSpeed={80}
+                    cursorClassName="text-violet-200"
+                    cursorCharacter="_"
+                    loop={true}
+                    pauseDuration={3000}
+                    hideCursorOnComplete={false}
+                  /><br />
                   Deliver with<br />
-                  <span className="italic font-serif bg-gradient-to-r from-cyan-200 via-indigo-200 to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(56,189,248,0.4)]">confidence.</span>
+                  <TextType
+                    text="confidence."
+                    as="span"
+                    className="italic font-serif bg-gradient-to-r from-cyan-200 via-indigo-200 to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_24px_rgba(56,189,248,0.4)]"
+                    typingSpeed={80}
+                    initialDelay={1200}
+                    cursorClassName="text-cyan-200"
+                    cursorCharacter="_"
+                    loop={true}
+                    pauseDuration={3000}
+                    hideCursorOnComplete={false}
+                  />
                 </h1>
                 <p
                   className="text-stone-400 leading-relaxed font-medium text-center"
@@ -438,7 +436,7 @@ const Landing2 = () => {
                     colors={['#c084fc', '#f472b6', '#38bdf8']}
                     className="w-full sm:w-auto"
                   >
-                    <button 
+                    <button
                       onClick={handleAction}
                       className="w-full px-10 py-4 bg-transparent text-white rounded-2xl text-base font-bold hover:bg-white/5 transition-all"
                     >
@@ -476,7 +474,7 @@ const Landing2 = () => {
 
                 {/* Glow effects behind the iframe */}
                 <div className="absolute -inset-6 bg-gradient-to-r from-violet-500/25 via-cyan-500/15 to-violet-500/25 rounded-[3rem] blur-[80px] pointer-events-none animate-pulse" style={{ animationDuration: '4s' }} />
-                
+
                 {/* iframe container */}
                 <div className="relative rounded-[1.5rem] overflow-hidden border border-stone-700/50 shadow-[0_20px_80px_rgba(139,92,246,0.15),0_8px_32px_rgba(0,0,0,0.5)] bg-stone-900/90 backdrop-blur-sm group/video">
                   {/* Browser chrome mockup */}
@@ -488,7 +486,7 @@ const Landing2 = () => {
                     </div>
                     <div className="flex-1 ml-4">
                       <div className="bg-stone-800/80 rounded-lg px-4 py-1.5 text-[11px] text-stone-500 font-mono max-w-[280px]">
-                        assignmate.ai/editor
+                        doxio.ai/editor
                       </div>
                     </div>
                   </div>
@@ -507,7 +505,7 @@ const Landing2 = () => {
                       onLoadedMetadata={handleLoadedMetadata}
                     />
                     {/* Play button overlay */}
-                    <div 
+                    <div
                       className={clsx(
                         "absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300",
                         isPlaying ? "opacity-0" : "opacity-100"
@@ -521,20 +519,20 @@ const Landing2 = () => {
                     {/* Bottom Control Bar */}
                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col gap-2 opacity-0 group-hover/video:opacity-100 transition-opacity duration-300">
                       {/* Progress bar container */}
-                      <div 
+                      <div
                         className="w-full h-1 bg-white/20 rounded-full relative group/progress cursor-pointer"
                         onClick={handleSeek}
                       >
-                        <div 
-                          className="absolute top-0 left-0 h-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.8)] transition-all duration-100" 
+                        <div
+                          className="absolute top-0 left-0 h-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.8)] transition-all duration-100"
                           style={{ width: `${progress}%` }}
                         />
-                        <div 
+                        <div
                           className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] opacity-0 group-hover/progress:opacity-100 transition-opacity"
                           style={{ left: `${progress}%`, marginLeft: '-6px' }}
                         />
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <button onClick={togglePlay} className="focus:outline-none">
@@ -551,7 +549,7 @@ const Landing2 = () => {
                             {formatTime(videoRef.current?.currentTime || 0)} / {formatTime(duration)}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-4">
                           <button onClick={toggleMute} className="focus:outline-none">
                             {isMuted ? (
@@ -576,7 +574,7 @@ const Landing2 = () => {
                 <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-violet-500/15 rounded-full blur-[50px] pointer-events-none" />
                 <div className="absolute -top-8 -left-8 w-40 h-40 bg-cyan-500/15 rounded-full blur-[60px] pointer-events-none" />
 
-                {/* "See AssignMate in action" handwritten text */}
+                {/* "See Doxio in action" handwritten text */}
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -590,7 +588,7 @@ const Landing2 = () => {
                     </svg>
                   </div>
                   <div className="relative group rotate-[-2deg]">
-                    <span className="text-violet-400/90 font-handwriting text-3xl tracking-wide block">See AssignMate in action</span>
+                    <span className="text-violet-400/90 font-handwriting text-3xl tracking-wide block">See Doxio in action</span>
                     {/* Double Underline Effect */}
                     <div className="absolute -bottom-1 left-0 w-full overflow-visible pointer-events-none rotate-[1deg]">
                       <svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none" className="text-violet-500/50">
@@ -684,7 +682,7 @@ const Landing2 = () => {
                   <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em]">The Mission</span>
                   <h2 className="text-5xl font-bold tracking-tight leading-[0.95]">Bridging the gap between AI and Academia.</h2>
                   <p className="text-lg text-stone-400 leading-relaxed font-medium">
-                    Generic AI tools often fail the test of academic integrity and depth. AssignMate was built by researchers to ensure your work remains original, cited, and high-quality.
+                    Generic AI tools often fail the test of academic integrity and depth. Doxio was built by researchers to ensure your work remains original, cited, and high-quality.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8">
@@ -746,141 +744,9 @@ const Landing2 = () => {
           </div>
         </section>
 
-        <section id="pricing" className="pt-18 pb-18 bg-stone-950">
-          <div className="max-w-[1200px] mx-auto px-6">
-            <div className="text-center max-w-2xl mx-auto mb-10">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em] mb-3 block">Investment</span>
-              <h2 className="text-4xl font-bold tracking-tight mb-5">
-                <ShinyText text="Simple, transparent pricing." speed={3} color="#b5b5b5" shineColor="#ffffff" />
-              </h2>
-              <p className="text-lg text-stone-400 font-medium">Choose the plan that fits your academic journey.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.1fr_1fr] gap-5 items-end max-w-[1200px] mx-auto">
-              {[
-                {
-                  name: 'SCHOLARLY FREE',
-                  price: '₹0',
-                  desc: 'Perfect for trying out AssignMate.',
-                  features: ['1 Assignment per week', 'Max 5 pages generation', 'Basic formatting', 'Standard templates', 'Digital preview only'],
-                  cta: 'JOIN FOR FREE',
-                  popular: false
-                },
-                {
-                  name: 'ARCHIVE PRO',
-                  price: '₹99',
-                  period: '/mo',
-                  desc: 'For serious students who want the best.',
-                  features: ['10 Assignments per month', 'Unlimited PDF/DOCX downloads', 'Complete Blueprint Library', 'Advanced AI Synthesizer', 'Priority processing stack', 'Scholarly watermark removal'],
-                  cta: 'ELEVATE TO PRO',
-                  popular: true
-                },
-                {
-                  name: 'SEMESTER PASS',
-                  price: '₹399',
-                  period: '/6 mo',
-                  desc: 'Best value for long-term researchers.',
-                  features: ['80 Assignments per term', 'Highest priority queue', 'Top template access', 'Full AI editing ecosystem', 'Best value for you', 'Priority support'],
-                  cta: 'SECURE PASS',
-                  popular: false,
-                  badge: 'BEST VALUE'
-                },
-              ].map((plan, i) => (
-                <div
-                  key={i}
-                  className={clsx(
-                    'relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300 flex flex-col group',
-                    plan.popular
-                      ? 'bg-gradient-to-b from-stone-900 to-stone-950 text-stone-200 border-violet-500/50 shadow-2xl shadow-violet-900/40 z-10 min-h-[550px]'
-                      : 'bg-gradient-to-b from-stone-900 to-stone-950 text-stone-200 border-stone-800 min-h-[510px]',
-                    !plan.popular && i === 0 && 'hover:border-emerald-500/50 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]',
-                    !plan.popular && i === 2 && 'hover:border-rose-500/50 hover:shadow-[0_0_30px_rgba(244,63,94,0.1)]'
-                  )}
-                >
-                  {plan.badge && (
-                    <div className="absolute top-5 right-5 px-2.5 py-1 bg-emerald-500 text-white text-[8px] font-bold rounded-full uppercase tracking-[0.15em] shadow-lg shadow-emerald-500/30 z-20">
-                      {plan.badge}
-                    </div>
-                  )}
-                  <div
-                    className={clsx(
-                      'pointer-events-none absolute left-0 right-0 bottom-0 h-24 transition-opacity duration-500',
-                      // Opposite directional hotspot per card (towards center).
-                      i === 0 && 'bg-[radial-gradient(72%_130%_at_86%_100%,rgba(52,211,153,0.45),rgba(52,211,153,0.20)_32%,transparent_74%)] opacity-60 group-hover:opacity-100',
-                      i === 1 && 'bg-[radial-gradient(70%_130%_at_50%_100%,rgba(167,139,250,0.52),rgba(167,139,250,0.24)_34%,transparent_74%)] opacity-80 group-hover:opacity-100',
-                      i === 2 && 'bg-[radial-gradient(72%_130%_at_14%_100%,rgba(244,63,94,0.45),rgba(244,63,94,0.20)_32%,transparent_74%)] opacity-60 group-hover:opacity-100'
-                    )}
-                  />
-                  <div
-                    className={clsx(
-                      'pointer-events-none absolute bottom-0 h-px transition-opacity duration-500',
-                      i === 0 && 'left-5 right-12 bg-gradient-to-r from-transparent via-emerald-300 to-emerald-400/80 opacity-40 group-hover:opacity-100',
-                      i === 1 && 'left-8 right-8 bg-gradient-to-r from-transparent via-violet-400 to-transparent opacity-60 group-hover:opacity-100',
-                      i === 2 && 'left-12 right-5 bg-gradient-to-r from-rose-400/80 via-rose-300 to-transparent opacity-40 group-hover:opacity-100'
-                    )}
-                  />
-                  <div className="mb-10">
-                    <h3 className={clsx(
-                      "text-xl font-bold mb-3",
-                      plan.name === 'ARCHIVE PRO' ? "text-amber-400" : "text-stone-300"
-                    )}>{plan.name}</h3>
-                    <div className="flex items-baseline gap-1 mb-3 text-stone-300">
-                      <span className="text-4xl font-bold tracking-tighter">{plan.price}</span>
-                      {plan.period && <span className={clsx('text-xs font-medium', plan.popular ? 'text-violet-300' : 'text-stone-500')}>{plan.period}</span>}
-                    </div>
-                    <p className={clsx('text-sm font-medium', plan.popular ? 'text-stone-300' : 'text-stone-400')}>{plan.desc}</p>
-                  </div>
-                  <ul className="space-y-4 mb-10 flex-1 relative z-10">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-3 text-sm font-medium">
-                        <CheckCircle2 size={18} className={plan.popular ? 'text-violet-400/80' : 'text-stone-500'} />
-                        <span className={plan.popular ? 'text-stone-300' : 'text-stone-400'}>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
 
-                  <GradualBlur
-                    target="parent"
-                    position="bottom"
-                    height="8rem"
-                    strength={3}
-                    divCount={6}
-                    curve="bezier"
-                    exponential={true}
-                    opacity={1}
-                    zIndex={0}
-                  />
 
-                  <div className="relative z-10 mt-auto">
-                    <BorderGlow
-                      edgeSensitivity={30}
-                      glowColor={i === 0 ? "150 70 60" : i === 2 ? "350 80 70" : "40 80 80"}
-                      backgroundColor="#120F17"
-                      borderRadius={24}
-                      glowRadius={40}
-                      glowIntensity={1.0}
-                      animated={false}
-                      colors={
-                        i === 0 ? ['#34d399', '#10b981', '#059669'] :
-                          i === 2 ? ['#fb7185', '#f43f5e', '#e11d48'] :
-                            ['#c084fc', '#f472b6', '#38bdf8']
-                      }
-                      className="w-full"
-                    >
-                      <button
-                        onClick={handleAction}
-                        className="w-full py-4 bg-transparent text-white rounded-2xl font-bold text-base hover:bg-white/5 transition-all active:scale-[0.98]"
-                      >
-                        {plan.cta}
-                      </button>
-                    </BorderGlow>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="how-it-works" className="pt-20 pb-20 bg-stone-900/40">
+        <section id="how-it-works" className="pt-20 pb-20 bg-stone-950 relative overflow-hidden">
           <div className="max-w-[1440px] mx-auto px-6">
             <div className="text-center max-w-3xl mx-auto mb-10">
               <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em] mb-4 block">The Workflow</span>
@@ -915,23 +781,20 @@ const Landing2 = () => {
           </div>
         </section>
 
-        <section id="testimonials" className="pt-20 pb-20 bg-[#070810] text-stone-400 overflow-hidden relative">
-          <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-500/20 blur-[120px] rounded-full"></div>
-          </div>
+        <section id="testimonials" className="pt-20 pb-8 bg-stone-900/40 text-stone-400 overflow-hidden relative">
           <div className="max-w-[1440px] mx-auto px-6 relative z-10">
             <div className="text-center max-w-3xl mx-auto mb-8">
               <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.4em] mb-4 block">User Reviews</span>
               <h2 className="text-6xl font-bold tracking-tight mb-6">
                 <ShinyText text="What the community says." speed={3} color="#b5b5b5" shineColor="#ffffff" />
               </h2>
-              <p className="text-xl text-stone-400 font-medium">Discover early user feedback on AssignMate integration within their workflows.</p>
+              <p className="text-xl text-stone-400 font-medium">Discover early user feedback on Doxio integration within their workflows.</p>
             </div>
 
             <div className="relative h-[800px] md:h-[600px] flex items-center justify-center">
               {[
                 { name: 'Ananya Sharma', role: 'PhD Candidate', quote: "The structure extraction tool saved me hours of planning. It perfectly understood my professor's complex brief.", pos: 'md:-translate-x-[110%] md:-translate-y-[60%] rotate-[-2deg]', date: '2026.04.15' },
-                { name: 'Arjun Reddy', role: 'Undergrad Student', quote: "I was skeptical about AI for writing, but AssignMate's focus on academic tone is unmatched. It's my daily driver now.", pos: 'md:translate-x-[100%] md:-translate-y-[45%] rotate-[3deg]', date: '2026.04.08' },
+                { name: 'Arjun Reddy', role: 'Undergrad Student', quote: "I was skeptical about AI for writing, but Doxio's focus on academic tone is unmatched. It's my daily driver now.", pos: 'md:translate-x-[100%] md:-translate-y-[45%] rotate-[3deg]', date: '2026.04.08' },
                 { name: 'Priyanka Gupta', role: 'Law Student', quote: "The citation manager alone is worth the price. It handles legal citations better than any other tool I've tried.", pos: 'md:-translate-x-[130%] md:translate-y-[10%] rotate-[1deg]', date: '2026.03.22' },
                 { name: 'Vikram Iyer', role: 'History Major', quote: 'Clean, fast, and reliable. The export to DOCX is seamless and looks professional every time.', pos: 'md:translate-x-[110%] md:translate-y-[35%] rotate-[-4deg]', date: '2026.04.20' },
                 { name: 'Rohan Mehta', role: 'Graduate Student', quote: "Finally an AI that understands academic rigor. It doesn't just write; it researches and cites with precision.", pos: 'md:-translate-x-[20%] md:-translate-y-[20%] rotate-[-1deg]', date: '2026.04.12' },
@@ -965,14 +828,14 @@ const Landing2 = () => {
                       <div className="w-4 h-4 rounded bg-violet-100 flex items-center justify-center">
                         <div className="w-1.5 h-1.5 rounded-full bg-violet-600"></div>
                       </div>
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">AssignMate user, {t.date}</span>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Doxio user, {t.date}</span>
                     </div>
                   </div>
                 </motion.div>
               ))}
             </div>
 
-            <div className="mt-20 flex flex-col items-center gap-6">
+            <div className="mt-12 flex flex-col items-center gap-6">
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="w-12 h-12 rounded-full border-4 border-[#070810] bg-stone-900 overflow-hidden">
@@ -981,6 +844,138 @@ const Landing2 = () => {
                 ))}
               </div>
               <p className="text-xs font-bold text-stone-500 uppercase tracking-[0.4em]">Trusted by 10,000+ scholars worldwide</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="pt-12 pb-24 bg-stone-950">
+          <div className="max-w-[1200px] mx-auto px-6">
+            <div className="text-center max-w-2xl mx-auto mb-10">
+              <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em] mb-4 block">Investment</span>
+              <h2 className="text-5xl font-bold tracking-tight mb-6">
+                <ShinyText text="Simple, transparent pricing." speed={3} color="#b5b5b5" shineColor="#ffffff" />
+              </h2>
+              <p className="text-xl text-stone-400 font-medium leading-relaxed">Choose the plan that fits your academic journey perfectly.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.1fr_1fr] gap-6 items-end max-w-[1200px] mx-auto">
+              {[
+                {
+                  name: 'SCHOLARLY FREE',
+                  price: '₹0',
+                  desc: 'Perfect for trying out Doxio.',
+                  features: ['1 Assignment per week', 'Max 5 pages generation', 'Basic formatting', 'Standard templates', 'Digital preview only'],
+                  cta: 'JOIN FOR FREE',
+                  popular: false
+                },
+                {
+                  name: 'ARCHIVE PRO',
+                  price: '₹99',
+                  period: '/mo',
+                  desc: 'For serious students who want the best.',
+                  features: ['10 Assignments per month', 'Unlimited PDF/DOCX downloads', 'Complete Blueprint Library', 'Advanced AI Synthesizer', 'Priority processing stack', 'Scholarly watermark removal'],
+                  cta: 'ELEVATE TO PRO',
+                  popular: true
+                },
+                {
+                  name: 'SEMESTER PASS',
+                  price: '₹399',
+                  period: '/6 mo',
+                  desc: 'Best value for long-term researchers.',
+                  features: ['80 Assignments per term', 'Highest priority queue', 'Top template access', 'Full AI editing ecosystem', 'Best value for you', 'Priority support'],
+                  cta: 'SECURE PASS',
+                  popular: false,
+                  badge: 'BEST VALUE'
+                },
+              ].map((plan, i) => (
+                <div
+                  key={i}
+                  className={clsx(
+                    'relative overflow-hidden p-8 rounded-[2.5rem] border transition-all duration-300 flex flex-col group',
+                    plan.popular
+                      ? 'bg-gradient-to-b from-stone-900 to-stone-950 text-stone-200 border-violet-500/50 shadow-2xl shadow-violet-900/40 z-10 min-h-[680px]'
+                      : 'bg-gradient-to-b from-stone-900 to-stone-950 text-stone-200 border-stone-800 min-h-[640px]',
+                    !plan.popular && i === 0 && 'hover:border-emerald-500/50 hover:shadow-[0_0_30px_rgba(16,185,129,0.1)]',
+                    !plan.popular && i === 2 && 'hover:border-rose-500/50 hover:shadow-[0_0_30px_rgba(244,63,94,0.1)]'
+                  )}
+                >
+                  {plan.badge && (
+                    <div className="absolute top-4 right-4 px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/30 z-20">
+                      {plan.badge}
+                    </div>
+                  )}
+                  <div
+                    className={clsx(
+                      'pointer-events-none absolute left-0 right-0 bottom-0 h-32 transition-opacity duration-500',
+                      i === 0 && 'bg-[radial-gradient(72%_130%_at_86%_100%,rgba(52,211,153,0.45),rgba(52,211,153,0.20)_32%,transparent_74%)] opacity-60 group-hover:opacity-100',
+                      i === 1 && 'bg-[radial-gradient(70%_130%_at_50%_100%,rgba(167,139,250,0.52),rgba(167,139,250,0.24)_34%,transparent_74%)] opacity-80 group-hover:opacity-100',
+                      i === 2 && 'bg-[radial-gradient(72%_130%_at_14%_100%,rgba(244,63,94,0.45),rgba(244,63,94,0.20)_32%,transparent_74%)] opacity-60 group-hover:opacity-100'
+                    )}
+                  />
+                  <div className="mb-12">
+                    <h3 className={clsx(
+                      "text-2xl font-bold mb-4",
+                      plan.name === 'ARCHIVE PRO' ? "text-amber-400" : "text-stone-300"
+                    )}>{plan.name}</h3>
+                    <div className="flex items-baseline gap-1 mb-4 text-stone-300">
+                      <span className="text-5xl font-bold tracking-tighter">{plan.price}</span>
+                      {plan.period && <span className={clsx('text-sm font-medium', plan.popular ? 'text-violet-300' : 'text-stone-500')}>{plan.period}</span>}
+                    </div>
+                    <p className={clsx('text-base font-medium', plan.popular ? 'text-stone-300' : 'text-stone-400')}>{plan.desc}</p>
+                  </div>
+                  <div className="flex-1 relative z-10 mb-12">
+                    <AnimatedList
+                      items={plan.features}
+                      displayScrollbar={false}
+                      showGradients={false}
+                      className="!p-0"
+                      itemClassName="!p-0 !bg-transparent !border-none !mb-5"
+                      renderItem={(feature) => (
+                        <div className="flex items-center gap-4 text-base font-medium">
+                          <CheckCircle2 size={20} className={plan.popular ? 'text-violet-400/80' : 'text-stone-500'} />
+                          <span className={plan.popular ? 'text-stone-300' : 'text-stone-400'}>{feature}</span>
+                        </div>
+                      )}
+                    />
+                  </div>
+
+                  <GradualBlur
+                    target="parent"
+                    position="bottom"
+                    height="10rem"
+                    strength={3}
+                    divCount={6}
+                    curve="bezier"
+                    exponential={true}
+                    opacity={1}
+                    zIndex={0}
+                  />
+
+                  <div className="relative z-10 mt-auto">
+                    <BorderGlow
+                      edgeSensitivity={20}
+                      glowColor={i === 0 ? "150 70 60" : i === 2 ? "350 80 70" : "40 80 80"}
+                      backgroundColor="#120F17"
+                      borderRadius={24}
+                      glowRadius={70}
+                      glowIntensity={1.5}
+                      animated={true}
+                      colors={
+                        i === 0 ? ['#34d399', '#10b981', '#6ee7b7'] :
+                          i === 2 ? ['#fb7185', '#f43f5e', '#fda4af'] :
+                            ['#c084fc', '#f472b6', '#7dd3fc']
+                      }
+                      className="w-full"
+                    >
+                      <button
+                        onClick={handleAction}
+                        className="w-full py-5 bg-transparent text-white rounded-2xl font-bold text-lg hover:bg-white/5 transition-all active:scale-[0.98]"
+                      >
+                        {plan.cta}
+                      </button>
+                    </BorderGlow>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -1062,7 +1057,7 @@ const Landing2 = () => {
                     colors={['#c084fc', '#f472b6', '#38bdf8']}
                     className="w-full sm:w-auto !border-0 !shadow-none"
                   >
-                    <button 
+                    <button
                       onClick={handleAction}
                       className="w-full sm:w-auto px-12 py-6 bg-transparent text-stone-100 border border-stone-600 rounded-2xl text-xl font-bold hover:bg-stone-800 transition-all"
                     >
@@ -1083,11 +1078,11 @@ const Landing2 = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-8 mb-24">
               {/* Brand Section */}
               <div className="lg:col-span-4 space-y-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                    <Sparkles className="text-black" size={24} />
+                <div className="flex items-center gap-2">
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <img src="/logo.png" alt="Doxio Logo" className="w-full h-full object-contain" />
                   </div>
-                  <span className="text-3xl font-bold tracking-tighter text-white">AssignMate</span>
+                  <span className="text-3xl font-bold tracking-tighter text-white">Doxio</span>
                 </div>
                 <p className="text-lg text-stone-400 max-w-sm leading-relaxed">
                   Elevating academic excellence through ethical AI. The ultimate companion for modern scholars and researchers.
@@ -1141,9 +1136,9 @@ const Landing2 = () => {
 
               {/* Newsletter Section */}
               <div className="lg:col-span-4 space-y-8">
-                <h4 className="text-sm font-bold text-white uppercase tracking-[0.2em]">Be the first to try AssignMate AI.</h4>
+                <h4 className="text-sm font-bold text-white uppercase tracking-[0.2em]">Be the first to try Doxio AI.</h4>
                 <p className="text-stone-400 leading-relaxed">We’ll notify you when we launch.</p>
-                <form 
+                <form
                   onSubmit={async (e) => {
                     e.preventDefault();
                     const email = (e.target as any).email.value;
@@ -1176,7 +1171,7 @@ const Landing2 = () => {
                       placeholder="Enter your email"
                       className="bg-transparent border-none outline-none px-4 py-3 w-full text-white placeholder-stone-600 font-medium"
                     />
-                    <button 
+                    <button
                       type="submit"
                       className="bg-white text-black px-6 py-3 rounded-xl font-bold hover:bg-stone-200 transition-colors"
                     >
@@ -1188,7 +1183,7 @@ const Landing2 = () => {
             </div>
 
             <div className="pt-16 border-t border-stone-800/50 flex flex-col md:flex-row justify-between items-center gap-8 text-stone-500 text-sm">
-              <p className="text-xs font-bold uppercase tracking-[0.4em]">© 2026 AssignMate AI. All rights reserved.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.4em]">© 2026 Doxio AI. All rights reserved.</p>
               <div className="flex gap-8 text-xs font-bold uppercase tracking-widest">
                 <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
                 <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
@@ -1197,7 +1192,7 @@ const Landing2 = () => {
             </div>
           </div>
         </footer>
-        
+
         <WaitlistModal isOpen={isWaitlistModalOpen} onClose={() => setIsWaitlistModalOpen(false)} />
       </div>
     </div>

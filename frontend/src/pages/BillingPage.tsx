@@ -351,7 +351,7 @@ const BillingPage = () => {
               </div>
               <h2 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9]">Ready to <span className="italic font-serif text-amber-400">excel?</span></h2>
               <p className="text-stone-400 max-w-2xl mx-auto text-xl font-medium leading-relaxed">
-                Join the elite guild of thousands of researchers using AssignMate to transform their productivity and achieve academic mastery.
+                Join the elite guild of thousands of researchers using Doxio to transform their productivity and achieve academic mastery.
               </p>
               <div className="pt-8">
                 <button className="px-16 py-6 bg-white text-stone-900 rounded-[2.5rem] font-black text-xs uppercase tracking-[0.4em] hover:bg-amber-400 transition-all active:scale-95 shadow-[0_20px_50px_rgba(255,255,255,0.1)]">

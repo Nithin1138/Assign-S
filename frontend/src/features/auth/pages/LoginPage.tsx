@@ -106,7 +106,7 @@ const LoginPage = () => {
             </h1>
 
             <p className="text-xl text-stone-400 leading-relaxed max-w-md mb-16">
-              AssignMate combines advanced AI with intuitive design to help you craft perfect assignments in record time.
+              Doxio combines advanced AI with intuitive design to help you craft perfect assignments in record time.
             </p>
 
             <div className="flex items-center gap-8">
@@ -138,7 +138,7 @@ const LoginPage = () => {
             <div className="w-12 h-12 bg-stone-900 rounded-2xl flex items-center justify-center shadow-xl shadow-stone-200">
               <Sparkles className="text-white" size={24} />
             </div>
-            <span className="text-2xl font-bold tracking-tighter">AssignMate</span>
+            <span className="text-2xl font-bold tracking-tighter">Doxio</span>
           </div>
 
           <div className="mb-12">

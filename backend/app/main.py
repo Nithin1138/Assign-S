@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AssignMate API",
+    title="Doxio API",
     version="1.0.0",
     lifespan=lifespan
 )

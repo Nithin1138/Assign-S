@@ -1,5 +1,5 @@
 {
-  "name": "AssignMate",
+  "name": "Doxio",
   "description": "AI-powered assignment automation platform for students.",
   "requestFramePermissions": ["camera", "microphone"]
 }
