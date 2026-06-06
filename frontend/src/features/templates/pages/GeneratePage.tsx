@@ -136,6 +136,8 @@ const GeneratePage = () => {
 
     const [showTemplateInput, setShowTemplateInput] = useState(false);
     const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+    const [showPasteInput, setShowPasteInput] = useState(false);
+    const [pastedHeadings, setPastedHeadings] = useState('');
     const [activeStep, setActiveStep] = useState(0);
 
     // Apply template from router navigation state
@@ -181,6 +183,8 @@ const GeneratePage = () => {
         setInstitution('');
         setActiveStep(0);
         setParseStatus('');
+        setPastedHeadings('');
+        setShowPasteInput(false);
         if (fileRef.current) fileRef.current.value = '';
         toast.success('Reset complete');
     };
@@ -292,6 +296,23 @@ const GeneratePage = () => {
             setParsingFile(false);
             setParseStatus('');
         }
+    };
+
+    const handleApplyPastedHeadings = () => {
+        if (!pastedHeadings.trim()) {
+            toast.error('Please paste some headings first');
+            return;
+        }
+        const lines = pastedHeadings.split('\n').filter(line => line.trim());
+        const newSections = lines.map(line => ({
+            id: uid(),
+            title: line.trim(),
+            level: 1,
+        }));
+        setSections(prev => [...prev, ...newSections]);
+        setPastedHeadings('');
+        setShowPasteInput(false);
+        toast.success(`${newSections.length} headings added!`);
     };
 
     // ── Section CRUD (works with hierarchical structure) ──────────────────────
@@ -692,6 +713,13 @@ const GeneratePage = () => {
                                                             <BookOpen size={14} />{' '}
                                                             {showTemplateLibrary ? 'Hide Library' : 'Browse Library'}
                                                         </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowPasteInput(v => !v)}
+                                                            className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all"
+                                                        >
+                                                            <Plus size={14} /> Bulk Add
+                                                        </button>
                                                         <label className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all cursor-pointer">
                                                             <Upload size={14} /> Upload Template
                                                             <input
@@ -704,6 +732,42 @@ const GeneratePage = () => {
                                                         </label>
                                                     </div>
                                                 </div>
+
+                                                {/* Bulk Paste Input */}
+                                                {showPasteInput && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        className="space-y-4 p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)] backdrop-blur-sm shadow-inner"
+                                                    >
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h4 className="text-xs font-bold text-[var(--text-main)] uppercase tracking-widest">
+                                                                Paste Side Headings (One per line)
+                                                            </h4>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowPasteInput(false)}
+                                                                className="text-stone-400 hover:text-red-500"
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                        <textarea
+                                                            rows={5}
+                                                            value={pastedHeadings}
+                                                            onChange={e => setPastedHeadings(e.target.value)}
+                                                            placeholder="Introduction&#10;Literature Review&#10;Methodology..."
+                                                            className="w-full bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl px-6 py-4 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--text-main)] transition-all outline-none resize-none placeholder:text-[var(--text-muted)]/30"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleApplyPastedHeadings}
+                                                            className="w-full py-3 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl text-xs font-bold hover:scale-[1.02] transition-all shadow-lg"
+                                                        >
+                                                            Add These Headings
+                                                        </button>
+                                                    </motion.div>
+                                                )}
 
                                                 {/* Built-in library */}
                                                 {showTemplateLibrary && (

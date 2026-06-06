@@ -119,7 +119,10 @@ def _gemini_sync(prompt: str) -> str:
 
     for attempt in range(MAX_RETRIES + 1):
         try:
-            response = model.generate_content(prompt)
+            response = model.generate_content(
+                prompt,
+                generation_config={"max_output_tokens": 8192}
+            )
 
             if not response:
                 raise HTTPException(status_code=500, detail="Empty AI response")

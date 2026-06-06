@@ -96,15 +96,17 @@ const getPrompt = (input: TaskInput): string => {
       ${sections ? `STRUCTURE / SECTIONS:
       The user wants to follow this specific hierarchical structure:
       ${sections.map((s, i) => typeof s === 'string' ? `${i + 1}. ${s}` : `${'  '.repeat(s.level - 1)}${s.level === 1 ? 'Section' : 'Sub'}: ${s.title}`).join('\n')}
+      
+      CRITICAL: You MUST generate detailed academic content for EVERY section and subsection listed above. Do NOT skip any headings. The final document must be complete and follow the structure exactly.
       ` : ''}
-
+      
       ${studentName || regNo || course || institution ? `STUDENT / ACADEMIC CONTEXT:
       ${studentName ? `- Student: ${studentName}` : ''}
       ${regNo ? `- Reg/Roll No: ${regNo}` : ''}
       ${course ? `- Course: ${course}` : ''}
       ${institution ? `- Institution: ${institution}` : ''}
       ` : ''}
-    Ensure deep academic content.`;
+    Ensure deep academic content and full coverage of the structure.`;
       break;
 
     case "parse_structure":
