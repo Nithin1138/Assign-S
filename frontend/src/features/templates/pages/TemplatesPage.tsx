@@ -63,8 +63,8 @@ const TemplateCard = ({
 
       {/* Main Card Body */}
       <div className={clsx(
-        "relative flex h-full flex-col overflow-hidden rounded-[2.2rem] p-7 transition-all duration-500 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.12)]",
-        isGlassEnabled ? "glass-card border-none" : "bg-[var(--bg-card)] shadow-[0_10px_40px_rgba(0,0,0,0.03)] ring-1 ring-[var(--border-main)]"
+        "relative flex h-full flex-col overflow-hidden p-7 transition-all duration-500 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.12)]",
+        isGlassEnabled ? "glass-card border-none" : "clay-card bg-[var(--bg-card)]/80 border border-[var(--border-main)]"
       )}>
 
         {/* Decorative elements */}
@@ -117,7 +117,7 @@ const TemplateCard = ({
               e.stopPropagation();
               onUse();
             }}
-            className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-[var(--text-main)] py-4 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--bg-card)] shadow-[0_15px_30px_rgba(0,0,0,0.15)] transition-all duration-300 hover:scale-[1.03] active:scale-95 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.25)]"
+            className="clay-btn flex flex-1 items-center justify-center gap-3 py-4 text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.03] active:scale-95 cursor-pointer"
           >
             <Play size={14} className="fill-current" /> Use Template
           </button>
@@ -127,7 +127,7 @@ const TemplateCard = ({
               onPreview();
             }}
             title="Inspect Architecture"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 text-[var(--text-muted)] backdrop-blur-sm transition-all duration-300 hover:border-[var(--text-main)] hover:text-[var(--text-main)] hover:bg-[var(--bg-card)] hover:shadow-lg active:scale-95"
+            className="clay-btn-light flex h-14 w-14 shrink-0 items-center justify-center backdrop-blur-sm hover:scale-[1.03] active:scale-95 cursor-pointer"
           >
             <LayoutIcon size={20} />
           </button>
@@ -348,20 +348,20 @@ const TemplatesPage = () => {
                 <div className="absolute -inset-1 rounded-[2.2rem] bg-gradient-to-r from-[var(--accent-main)] via-[var(--accent-main)]/20 to-[var(--accent-main)] opacity-0 blur-xl transition-all duration-700 group-focus-within/search:opacity-30 group-hover/search:opacity-15" />
                 <div className="absolute inset-0 rounded-[1.8rem] bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-10" />
 
-                <div className="relative z-20 flex items-center gap-3 rounded-[1.8rem] border border-[var(--border-main)] bg-[var(--bg-card)]/80 p-2 pl-6 pr-2 shadow-[0_15px_40px_rgba(0,0,0,0.04)] backdrop-blur-3xl transition-all duration-500 hover:border-[var(--text-main)] group-focus-within/search:border-[var(--text-main)]">
+                <div className="clay-card relative z-20 flex items-center gap-3 bg-[var(--bg-card)]/80 p-2 pl-6 pr-2 backdrop-blur-3xl transition-all duration-500 border border-[var(--border-main)]">
                   <Search className="h-4 w-4 text-[var(--text-muted)] transition-all duration-500 group-focus-within/search:text-[var(--text-main)] group-focus-within/search:rotate-90" />
                   <input
                     type="search"
                     placeholder="Search blueprints..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1 bg-transparent py-3 text-sm font-bold tracking-tight text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]/40"
+                    className="clay-input flex-1 bg-transparent border-none shadow-none py-3 px-0 text-sm font-bold tracking-tight text-[var(--text-main)] outline-none placeholder:text-[var(--text-muted)]/40 focus:bg-transparent focus:shadow-none"
                   />
                   <button
                     onClick={fetchTemplates}
                     disabled={refreshing}
                     className={clsx(
-                      "flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-app)] text-[var(--text-muted)] transition-all hover:bg-[var(--text-main)] hover:text-[var(--bg-card)]",
+                      "clay-btn-light flex h-10 w-10 items-center justify-center rounded-xl transition-all cursor-pointer",
                       refreshing && "animate-spin"
                     )}
                   >
@@ -371,7 +371,7 @@ const TemplatesPage = () => {
               </div>
 
               {/* Stats Suite - Below Search */}
-              <div className="flex items-center gap-3 p-1 bg-[var(--bg-card)]/40 border border-[var(--border-main)] rounded-2xl backdrop-blur-xl max-w-fit">
+              <div className="clay-card flex items-center gap-3 p-1 bg-[var(--bg-card)]/40 border border-[var(--border-main)] rounded-2xl backdrop-blur-xl max-w-fit shadow-sm">
                 <div className="flex items-center gap-2 px-3 py-1.5 border-r border-[var(--border-main)]">
                   <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em] opacity-40">Architectures</span>
                   <span className="text-sm font-black text-[var(--text-main)]">{userTemplates.length}</span>
@@ -385,7 +385,7 @@ const TemplatesPage = () => {
               {/* Action Button - Below Stats */}
               <button
                 onClick={() => setIsCreating(true)}
-                className="group relative flex w-full lg:w-auto items-center justify-center gap-3 px-8 py-4 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-black uppercase tracking-widest text-[10px] overflow-hidden transition-all hover:scale-[1.02] active:scale-95 shadow-2xl shadow-black/10"
+                className="clay-btn-violet group relative flex w-full lg:w-auto items-center justify-center gap-3 px-8 py-4 font-black uppercase tracking-widest text-[10px] overflow-hidden transition-all hover:scale-[1.02] active:scale-95 shadow-2xl shadow-black/10 cursor-pointer"
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-amber-500/40 blur-xl scale-150 rotate-12 -translate-y-1/2" />
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity duration-500 bg-gradient-to-br from-indigo-400 via-transparent to-amber-400" />
@@ -407,7 +407,7 @@ const TemplatesPage = () => {
           ) : (
             <div className="space-y-4">
               {/* Unified & Immersive Filter Suite */}
-              <div className="flex flex-wrap items-center p-1.5 bg-[var(--bg-card)]/35 border border-[var(--border-main)] rounded-full backdrop-blur-xl max-w-fit shadow-sm">
+              <div className="clay-card flex flex-wrap items-center p-1.5 bg-[var(--bg-card)]/35 border border-[var(--border-main)] backdrop-blur-xl max-w-fit shadow-sm">
                 {[
                   { id: 'all', label: 'All', count: userTemplates.length + standardTemplates.length },
                   { id: 'my-templates', label: 'Mine', count: userTemplates.length },
@@ -566,7 +566,7 @@ const TemplatesPage = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="group/modal relative flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-[3.5rem] border border-[var(--border-main)] bg-[var(--bg-card)] shadow-[0_40px_100px_rgba(0,0,0,0.15)]"
+              className="clay-card group/modal relative flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden bg-[var(--bg-card)] border border-[var(--border-main)]"
             >
               <div className="flex items-center justify-between border-b border-[var(--border-main)] p-10 bg-gradient-to-b from-[var(--bg-card)] to-[var(--bg-app)]/30">
                 <div className="space-y-1">
@@ -763,14 +763,14 @@ const TemplatesPage = () => {
                 <button
                   type="button"
                   onClick={() => setPreviewTemplate(null)}
-                  className="flex items-center gap-3 px-12 py-5 font-black uppercase tracking-widest text-xs text-[var(--text-muted)] transition-all hover:text-[var(--text-main)] hover:bg-[var(--bg-app)] rounded-2xl ring-1 ring-transparent hover:ring-[var(--border-main)]"
+                  className="clay-btn-light flex items-center gap-3 px-12 py-5 font-black uppercase tracking-widest text-xs cursor-pointer"
                 >
                   <ChevronRight size={18} className="rotate-180" /> Dismiss Preview
                 </button>
                 <button
                   type="button"
                   onClick={() => handleUseTemplate(previewTemplate)}
-                  className="group flex items-center gap-4 rounded-2xl bg-[var(--text-main)] px-16 py-5 font-black uppercase tracking-[0.2em] text-[10px] text-[var(--bg-card)] shadow-[0_20px_40px_rgba(0,0,0,0.2)] transition-all hover:scale-105 active:scale-95"
+                  className="clay-btn-violet group flex items-center gap-4 px-16 py-5 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer"
                 >
                   <Play size={16} className="transition-transform group-hover:scale-125 group-hover:translate-x-1" /> Use Template
                 </button>
@@ -851,9 +851,9 @@ const CreateTemplateModal = ({ isOpen, onClose, onSuccess }: { isOpen: boolean, 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md rounded-[2rem] border border-[var(--border-main)] bg-[var(--bg-card)] p-8 shadow-[0_50px_100px_rgba(0,0,0,0.12)]"
+            className="clay-card relative w-full max-w-md bg-[var(--bg-card)] p-8 border border-[var(--border-main)]"
           >
-            <button onClick={onClose} className="absolute right-6 top-6 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+            <button onClick={onClose} className="absolute right-6 top-6 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer">
               <X size={20} />
             </button>
 
@@ -872,7 +872,7 @@ const CreateTemplateModal = ({ isOpen, onClose, onSuccess }: { isOpen: boolean, 
                   placeholder="e.g. My Lab Report"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 px-5 py-3.5 text-sm font-bold text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] shadow-sm"
+                  className="clay-input w-full px-5 py-3.5 text-sm font-bold"
                 />
               </div>
 
@@ -882,7 +882,7 @@ const CreateTemplateModal = ({ isOpen, onClose, onSuccess }: { isOpen: boolean, 
                   placeholder="What is this structure for?"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full h-20 rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/50 px-5 py-3.5 text-xs font-medium text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] resize-none shadow-sm"
+                  className="clay-input w-full h-20 px-5 py-3.5 text-xs font-medium resize-none"
                 />
               </div>
 
@@ -893,14 +893,14 @@ const CreateTemplateModal = ({ isOpen, onClose, onSuccess }: { isOpen: boolean, 
                 <textarea
                   value={sectionsText}
                   onChange={(e) => setSectionsText(e.target.value)}
-                  className="w-full h-32 rounded-xl border border-[var(--border-main)] bg-[var(--bg-app)]/30 px-5 py-3.5 font-mono text-xs font-medium text-[var(--text-main)] outline-none transition-all focus:border-[var(--text-main)] focus:bg-[var(--bg-card)] shadow-inner"
+                  className="clay-input w-full h-32 px-5 py-3.5 font-mono text-xs font-medium"
                 />
               </div>
 
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="group relative w-full h-14 flex items-center justify-center gap-3 overflow-hidden rounded-xl bg-[var(--text-main)] text-[10px] font-black uppercase tracking-[0.2em] text-[var(--bg-card)] shadow-lg shadow-black/5 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                className="clay-btn-violet group relative w-full h-14 flex items-center justify-center gap-3 overflow-hidden text-[10px] font-black uppercase tracking-[0.2em] cursor-pointer disabled:opacity-50"
               >
                 <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 {saving ? (

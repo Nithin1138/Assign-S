@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Zap, Sparkles, LayoutDashboard, User as UserIcon, BookOpen,
     SearchCode, RefreshCw, Upload, Plus, X, ArrowRight, ArrowLeft,
-    Code, Check, FileText, Bookmark, Save
+    Code, Check, FileText, Bookmark, Save, Sparkle
 } from 'lucide-react';
 
 import toast from 'react-hot-toast';
@@ -16,10 +16,10 @@ import { createDocument, saveAsTemplate } from '../../../shared/services/db';
 import { performTask, AcademicTone } from '../../../shared/services/ai';
 import { AppLayout as Layout } from '../../../app/layout/AppLayout';
 
-
 import Aurora from '../../editor/components/Aurora';
 import GeneratingLoader from '../../../shared/components/GeneratingLoader';
 import { extractTemplateData, Section as ExtractedSection, TemplateData, formatAsStrictJSON } from '../../../shared/utils/templateExtractor';
+import DotField from '../../../shared/components/DotField';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,6 @@ interface Section {
 
 const uid = () => Math.random().toString(36).substr(2, 9);
 
-// Convert extracted sections to internal format with unique IDs
 function convertExtractedSections(sections: ExtractedSection[]): Section[] {
     return sections.map(s => ({
         id: uid(),
@@ -44,7 +43,6 @@ function convertExtractedSections(sections: ExtractedSection[]): Section[] {
     }));
 }
 
-// Flatten hierarchical sections for editing UI
 function flattenSections(sections: Section[]): Array<Section & { depth: number }> {
     const result: Array<Section & { depth: number }> = [];
 
@@ -140,6 +138,24 @@ const GeneratePage = () => {
     const [pastedHeadings, setPastedHeadings] = useState('');
     const [activeStep, setActiveStep] = useState(0);
 
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    // Dynamic Theme Listener
+    useEffect(() => {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+                    setIsDarkMode(isDark);
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true });
+        setIsDarkMode(document.documentElement.classList.contains('dark') || document.body.classList.contains('dark'));
+
+        return () => observer.disconnect();
+    }, []);
+
     // Apply template from router navigation state
     useEffect(() => {
         if (!location.state?.template) return;
@@ -155,7 +171,6 @@ const GeneratePage = () => {
         setDescription(t.description || '');
         setTone(t.tone || 'formal');
 
-        // Also restore metadata if available
         if (t.metadataFields) {
             if (t.metadataFields.student_name) setStudentName(t.metadataFields.student_name);
             if (t.metadataFields.registration_number) setRegNo(t.metadataFields.registration_number);
@@ -198,7 +213,7 @@ const GeneratePage = () => {
         toast.success(`${t.name} applied!`);
     };
 
-    // ── File upload — improved extraction ─────────────────────────────────────
+    // ── File upload ───────────────────────────────────────────────────────────
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -216,7 +231,6 @@ const GeneratePage = () => {
 
             setExtractedData(data);
 
-            // Auto-fill metadata (never overwrite user input)
             const m = data.metadata;
             if (m.student_name && !studentName) setStudentName(m.student_name);
             if (m.registration_number && !regNo) setRegNo(m.registration_number);
@@ -226,16 +240,13 @@ const GeneratePage = () => {
                 setTopic(data.title);
             }
 
-            // Set raw text for AI style matching
             setTemplateText(data.rawText);
 
-            // 1. Initial Local Extraction Success (Immediate feedback for user)
             if (data.sections.length > 0) {
                 setSections(convertExtractedSections(data.sections));
                 setExtractionDetails(prev => ({ ...prev, raw: data }));
             }
 
-            // 2. AI Refinement (Universal Logic)
             setParseStatus('Refining blueprint with Universal AI...');
             try {
                 const aiResult = await performTask({
@@ -250,7 +261,6 @@ const GeneratePage = () => {
                     setExtractionDetails(prev => ({ ...prev, ai: aiData }));
                     if (aiData.title) setTopic(aiData.title);
 
-                    // Update metadata if AI found better values
                     const m = aiData.metadata;
                     if (m?.student_name) setStudentName(m.student_name);
                     if (m?.registration_number) setRegNo(m.registration_number);
@@ -266,7 +276,6 @@ const GeneratePage = () => {
             } catch (aiErr) {
                 console.error('AI refinement failed:', aiErr);
                 if (data.sections.length === 0) {
-                    // Fallback to defaults only if everything failed
                     setSections([
                         { id: uid(), title: 'Introduction', level: 1 },
                         { id: uid(), title: 'Main Body', level: 1 },
@@ -276,16 +285,6 @@ const GeneratePage = () => {
                     toast('Using basic structure fallback.', { icon: '⚠️' });
                 }
             }
-
-            // Show extraction summary
-            if (data.style.body_font_size || data.style.font_family) {
-                const styleInfo = [];
-                if (data.style.font_family) styleInfo.push(data.style.font_family);
-                if (data.style.body_font_size) styleInfo.push(`${Math.round(data.style.body_font_size)}pt`);
-
-                console.log('Extracted style:', styleInfo.join(', '));
-            }
-
         } catch (err: any) {
             console.error(err);
             toast.error(err.message || 'Failed to parse file. Try a different format.');
@@ -315,7 +314,7 @@ const GeneratePage = () => {
         toast.success(`${newSections.length} headings added!`);
     };
 
-    // ── Section CRUD (works with hierarchical structure) ──────────────────────
+    // ── Section CRUD ──────────────────────────────────────────────────────────
 
     const addSection = (level = 1) => {
         setSections(prev => [...prev, { id: uid(), title: 'New Section', level }]);
@@ -410,7 +409,6 @@ const GeneratePage = () => {
         setLoading(true);
 
         try {
-            // Flatten sections for AI
             const flatSections = flattenSections(sections);
             const sectionsForAI = flatSections.map(s => ({
                 title: s.title,
@@ -490,680 +488,508 @@ const GeneratePage = () => {
         }
     };
 
-    // ── Step config ────────────────────────────────────────────────────────────
+    // ── Steps Config ──────────────────────────────────────────────────────────
 
     const steps = [
-        { title: 'Structure', icon: LayoutDashboard },
-        { title: 'Core Concept', icon: Sparkles },
-        { title: 'Personalize', icon: UserIcon },
+        { label: 'Step 01', title: 'Thesis & Topic', desc: 'Core research scope' },
+        { label: 'Step 02', title: 'Credentials', desc: 'Student cover metadata' },
+        { label: 'Step 03', title: 'Outline Builder', desc: 'Structure blueprint' }
     ];
-
-    const LEVEL_BADGE: Record<number, string> = {
-        1: 'bg-stone-900 text-white',
-        2: 'bg-stone-200 text-stone-700',
-        3: 'bg-stone-100 text-stone-400',
-    };
 
     const LEVEL_INDENT: Record<number, string> = {
         0: 'ml-0',
-        1: 'ml-6',
-        2: 'ml-12',
-        3: 'ml-18',
+        1: 'ml-4',
+        2: 'ml-8',
+        3: 'ml-12',
     };
 
-    // Flatten for rendering
     const flatSections = flattenSections(sections);
 
-    // ── Render ─────────────────────────────────────────────────────────────────
+    // Color configurations per card stack index - vibrant, high contrast, matching themes
+    const CARD_THEMES = [
+        {
+            bg: isDarkMode 
+                ? "from-[#1B0B3A]/75 to-[#0C061C]/80 border-violet-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(139,92,246,0.45)] hover:border-violet-400/40" 
+                : "from-[#F5F3FF] to-[#DDD6FE] border-violet-300/80 shadow-[25px_25px_60px_rgba(139,92,246,0.15)] hover:shadow-[0_0_45px_rgba(139,92,246,0.3)] hover:border-violet-400/40",
+            badge: isDarkMode ? "text-violet-200 bg-violet-950/60 border-violet-800" : "text-violet-850 bg-violet-100 border-violet-200",
+            btn: "clay-btn-violet text-white",
+            text: isDarkMode ? "text-violet-50 placeholder-violet-400/80" : "text-violet-950 placeholder-violet-500/80",
+            border: isDarkMode ? "border-violet-700/40 focus:border-violet-400" : "border-violet-300/60 focus:border-violet-650",
+            label: isDarkMode ? "text-violet-300/90 font-bold" : "text-violet-750/90 font-bold"
+        },
+        {
+            bg: isDarkMode 
+                ? "from-[#042433]/75 to-[#050D1D]/80 border-cyan-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(6,182,212,0.45)] hover:border-cyan-400/40" 
+                : "from-[#E0F2FE] to-[#BAE6FD] border-cyan-300/80 shadow-[25px_25px_60px_rgba(6,182,212,0.15)] hover:shadow-[0_0_45px_rgba(6,182,212,0.3)] hover:border-cyan-400/40",
+            badge: isDarkMode ? "text-cyan-200 bg-cyan-950/60 border-cyan-800" : "text-cyan-900 bg-cyan-100 border-cyan-200",
+            btn: "clay-btn-cyan text-white",
+            text: isDarkMode ? "text-cyan-50 placeholder-cyan-400/80" : "text-cyan-950 placeholder-cyan-600/80",
+            border: isDarkMode ? "border-cyan-700/40 focus:border-cyan-400" : "border-cyan-300/60 focus:border-cyan-600",
+            label: isDarkMode ? "text-cyan-300/90 font-bold" : "text-cyan-800/90 font-bold"
+        },
+        {
+            bg: isDarkMode 
+                ? "from-[#033024]/75 to-[#011610]/80 border-emerald-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(16,185,129,0.45)] hover:border-emerald-400/40" 
+                : "from-[#ECFDF5] to-[#A7F3D0] border-emerald-300/80 shadow-[25px_25px_60px_rgba(16,185,129,0.15)] hover:shadow-[0_0_45px_rgba(16,185,129,0.3)] hover:border-emerald-400/40",
+            badge: isDarkMode ? "text-emerald-250 bg-emerald-950/60 border-emerald-800" : "text-emerald-900 bg-emerald-100 border-emerald-200",
+            btn: "clay-btn-emerald text-white",
+            text: isDarkMode ? "text-emerald-50 placeholder-emerald-400/80" : "text-emerald-950 placeholder-emerald-700/85",
+            border: isDarkMode ? "border-emerald-700/40 focus:border-emerald-400" : "border-emerald-300/60 focus:border-emerald-600",
+            label: isDarkMode ? "text-emerald-300/90 font-bold" : "text-emerald-800/90 font-bold"
+        }
+    ];
+
+    const getCardStyle = (idx: number) => {
+        const diff = idx - activeStep;
+        if (diff < 0) {
+            return {
+                x: -1000,
+                rotate: -12,
+                opacity: 0,
+                scale: 1,
+                y: 0,
+                zIndex: 0,
+                pointerEvents: 'none' as const
+            };
+        } else if (diff === 0) {
+            return {
+                x: 0,
+                y: 0,
+                rotate: 0,
+                opacity: 1,
+                scale: 1,
+                zIndex: 30,
+                pointerEvents: 'auto' as const
+            };
+        } else if (diff === 1) {
+            return {
+                x: 24,
+                y: 16,
+                rotate: 2,
+                scale: 1,
+                opacity: 0.95,
+                zIndex: 20,
+                pointerEvents: 'none' as const
+            };
+        } else {
+            return {
+                x: 48,
+                y: 32,
+                rotate: 4,
+                scale: 1,
+                opacity: 0.85,
+                zIndex: 10,
+                pointerEvents: 'none' as const
+            };
+        }
+    };
 
     return (
         <Layout>
             <AnimatePresence>{loading && <GeneratingLoader topic={topic} />}</AnimatePresence>
 
-            <div className="min-h-screen bg-[var(--bg-app)] relative overflow-hidden">
-                {/* Immersive Background */}
-                <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+            <div className="min-h-screen bg-[var(--bg-app)] relative overflow-hidden font-sans text-[var(--text-main)] flex flex-col justify-between p-6 md:p-12 transition-colors duration-500">
+                {/* Dynamic Theme Aurora Background */}
+                <div className="absolute inset-0 z-0 opacity-35 dark:opacity-20 pointer-events-none">
                     <Aurora
-                        colorStops={['#F5F5F0', '#E4E3E0', '#F5F5F0']}
+                        colorStops={
+                            isDarkMode 
+                                ? ['#1E1B4B', '#083344', '#064E3B'] 
+                                : ['#EEF2FF', '#E0F2FE', '#ECFDF5']
+                        }
                         speed={0.2}
                         amplitude={0.8}
                     />
                 </div>
 
-                <div className="relative z-10 p-6 md:p-12 max-w-6xl mx-auto pt-6 md:pt-12">
-                    {/* Header */}
-                    <header className="mb-10 text-center space-y-4">
-                        <motion.div
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--text-main)] text-[var(--bg-card)] text-[10px] font-black uppercase tracking-[0.25em] shadow-lg shadow-black/10"
-                        >
-                            <Zap size={12} className="text-amber-400 fill-amber-400" /> AI-Powered Synthesis
-                        </motion.div>
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-5xl md:text-6xl font-bold text-[var(--text-main)] tracking-tight"
-                        >
-                            Create your <span className="italic font-serif text-amber-600">masterpiece</span>.
-                        </motion.h1>
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-stone-500 text-lg max-w-2xl mx-auto"
-                        >
-                            Advanced AI extracts structure, formatting, and content from your templates —
-                            headings detected by size and bold formatting, with no timeouts.
-                        </motion.p>
-                    </header>
+                {/* Dot background field */}
+                <div className="absolute inset-0 opacity-15 dark:opacity-5 pointer-events-none z-0">
+                    <DotField
+                        dotRadius={1.5}
+                        dotSpacing={26}
+                        bulgeOnly={false}
+                        bulgeStrength={40}
+                        glowRadius={140}
+                        sparkle={true}
+                        waveAmplitude={0.2}
+                        gradientFrom={isDarkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(139, 92, 246, 0.1)"}
+                        gradientTo={isDarkMode ? "rgba(255, 255, 255, 0.01)" : "rgba(6, 182, 212, 0.05)"}
+                        glowColor={isDarkMode ? "#090514" : "#F5F3FF"}
+                    />
+                </div>
 
-                    <div className="grid lg:grid-cols-12 gap-12 items-start">
-                        {/* Left: progress sidebar */}
-                        <div className="lg:col-span-4 space-y-8">
-                            <div className="bg-[var(--bg-card)] rounded-[2.5rem] p-8 border border-[var(--border-main)] shadow-xl shadow-black/5">
-                                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-8">
-                                    Generation Progress
-                                </h3>
-                                <div className="space-y-6">
-                                    {steps.map((s, i) => (
-                                        <div key={i} className="flex items-center gap-4">
-                                            <div
-                                                className={clsx(
-                                                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm',
-                                                    activeStep === i
-                                                        ? 'bg-[var(--text-main)] text-[var(--bg-card)] scale-110 shadow-lg'
-                                                        : activeStep > i
-                                                            ? 'bg-emerald-500/20 text-emerald-500'
-                                                            : 'bg-[var(--bg-app)] text-[var(--text-muted)]/40'
-                                                )}
-                                            >
-                                                {activeStep > i ? <Check size={20} /> : <s.icon size={20} />}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p
+                {/* Header */}
+                <header className="relative z-20 flex justify-between items-center max-w-5xl mx-auto w-full mb-6">
+                    <div className="flex items-center gap-2">
+                        <Sparkle size={20} className="text-[var(--text-main)] shrink-0" />
+                        <span className="font-serif italic text-xl font-bold tracking-tight text-[var(--text-main)]">
+                            Synthesis Desk
+                        </span>
+                    </div>
+
+                    {/* Circular Orbital Progress Ring */}
+                    <div className="flex items-center gap-3 bg-[var(--bg-card)] px-5 py-2 rounded-full border border-[var(--border-main)] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                        <svg className="w-5 h-5 transform -rotate-90">
+                            <circle cx="10" cy="10" r="8" className="stroke-stone-200 dark:stroke-stone-800" strokeWidth="2" fill="transparent" />
+                            <circle
+                                cx="10"
+                                cy="10"
+                                r="8"
+                                className="stroke-stone-900 dark:stroke-stone-100"
+                                strokeWidth="2"
+                                fill="transparent"
+                                strokeDasharray={2 * Math.PI * 8}
+                                strokeDashoffset={2 * Math.PI * 8 * (1 - (activeStep + 1) / steps.length)}
+                            />
+                        </svg>
+                        <span className="text-[10px] font-bold text-[var(--text-main)] uppercase tracking-wider">
+                            Step {activeStep + 1} of {steps.length}
+                        </span>
+                    </div>
+                </header>
+
+                {/* Upscaled Card Stack Workspace */}
+                <main className="flex-1 relative z-10 flex items-center justify-center max-w-5xl mx-auto w-full my-4">
+                    <div className="relative w-full max-w-4xl h-[620px]">
+                        
+                        {steps.map((s, idx) => {
+                            const isCurrent = activeStep === idx;
+                            const theme = CARD_THEMES[idx] || CARD_THEMES[0];
+                            return (
+                                <motion.div
+                                    key={idx}
+                                    style={{ position: 'absolute', width: '100%', top: 0, left: 0 }}
+                                    animate={getCardStyle(idx)}
+                                    transition={{ type: 'spring', stiffness: 220, damping: 25 }}
+                                    className={clsx(
+                                        "clay-card p-8 md:p-10 h-full bg-gradient-to-br border flex flex-col justify-between",
+                                        theme.bg
+                                    )}
+                                >
+                                    {/* Card Header */}
+                                    <div className="flex justify-between items-start border-b border-stone-250/30 pb-5">
+                                        <div>
+                                            <span className={clsx("text-[10px] font-black tracking-widest block uppercase mb-1", theme.label)}>{s.label}</span>
+                                            <h2 className={clsx("text-2xl font-serif italic font-bold leading-tight", isDarkMode ? "text-white" : "text-stone-950")}>{s.title}</h2>
+                                        </div>
+                                        <div className={clsx(
+                                            "text-[10px] font-bold uppercase border rounded px-2.5 py-1",
+                                            theme.badge
+                                        )}>
+                                            {s.desc}
+                                        </div>
+                                    </div>
+
+                                    {/* Card Content Panel */}
+                                    <div className="flex-1 py-6">
+                                        {idx === 0 && (
+                                            <div className="space-y-8">
+                                                <input
+                                                    type="text"
+                                                    required={isCurrent}
+                                                    value={topic}
+                                                    onChange={e => setTopic(e.target.value)}
+                                                    placeholder="Enter your research topic..."
                                                     className={clsx(
-                                                        'text-sm font-bold transition-colors',
-                                                        activeStep === i ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'
+                                                        "clay-input w-full px-5 py-4 text-2xl md:text-3xl font-serif italic focus:bg-[var(--bg-card)]",
+                                                        theme.text
                                                     )}
-                                                >
-                                                    {s.title}
-                                                </p>
-                                                <div className="h-1.5 bg-[var(--bg-app)] rounded-full mt-2 overflow-hidden border border-[var(--border-main)]/30 shadow-inner">
-                                                    <motion.div
-                                                        animate={{
-                                                            width:
-                                                                activeStep === i
-                                                                    ? '50%'
-                                                                    : activeStep > i
-                                                                        ? '100%'
-                                                                        : '0%',
-                                                        }}
-                                                        className="h-full bg-[var(--text-main)] shadow-[0_0_8px_rgba(0,0,0,0.1)]"
+                                                />
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center pb-1">
+                                                        <span className={clsx("text-[11px] font-black tracking-widest uppercase", theme.label)}>Writing Guidelines</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowTemplateInput(v => !v)}
+                                                            className="clay-btn-light px-3 py-1 text-[9px] font-bold uppercase transition-colors hover:opacity-85 cursor-pointer"
+                                                        >
+                                                            {showTemplateInput ? '- Hide Context' : '+ Add Reference Context'}
+                                                        </button>
+                                                    </div>
+                                                    <AnimatePresence>
+                                                        {showTemplateInput && (
+                                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                                                <textarea
+                                                                    rows={3}
+                                                                    value={templateText}
+                                                                    onChange={e => setTemplateText(e.target.value)}
+                                                                    placeholder="Paste document reference notes or styling requirements..."
+                                                                    className={clsx(
+                                                                        "clay-input w-full p-4 text-sm resize-none mb-3",
+                                                                        theme.text
+                                                                    )}
+                                                                />
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                    <textarea
+                                                        rows={4}
+                                                        required={isCurrent}
+                                                        value={description}
+                                                        onChange={e => setDescription(e.target.value)}
+                                                        placeholder="Describe specific requests, required theories, formatting rules..."
+                                                        className={clsx(
+                                                            "clay-input w-full p-4 text-base resize-none",
+                                                            theme.text
+                                                        )}
                                                     />
                                                 </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-amber-400/10 rounded-[2.5rem] p-8 border border-amber-400/20 shadow-lg shadow-amber-900/5">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-900/20">
-                                        <Zap size={18} />
-                                    </div>
-                                    <h4 className="font-bold text-amber-500">Enhanced Extraction</h4>
-                                </div>
-                                <div className="space-y-4">
-                                    <p className="text-sm text-[var(--text-main)] opacity-70 leading-relaxed font-medium">
-                                        Upload any template — PDF, DOCX, or TXT. Headings are detected by font size,
-                                        bold formatting, and academic structure.
-                                    </p>
-                                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-400/20 border border-amber-400/30">
-                                        <Sparkles size={12} className="text-amber-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500">
-                                            Tip: Upload .DOCX for superior extraction
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Extracted data summary */}
-                            {extractedData && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-emerald-500/5 rounded-[2.5rem] p-6 border border-emerald-500/20 space-y-3 shadow-lg shadow-emerald-900/5"
-                                >
-                                    <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
-                                        Extraction Summary
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-2">
-                                        {extractedData.style.font_family && (
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Font Family</span>
-                                                <span className="text-[13px] font-bold text-emerald-500 truncate">{extractedData.style.font_family.split(',')[0]}</span>
-                                            </div>
-                                        )}
-                                        {extractedData.style.body_font_size && (
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Base Scale</span>
-                                                <span className="text-[13px] font-bold text-emerald-500">{Math.round(extractedData.style.body_font_size)}pt</span>
-                                            </div>
-                                        )}
-                                        {extractedData.style.heading_font_size && (
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Heading Scale</span>
-                                                <span className="text-[13px] font-bold text-emerald-500">{Math.round(extractedData.style.heading_font_size)}pt</span>
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500/40">Research Units</span>
-                                            <span className="text-[13px] font-bold text-emerald-500">{flatSections.length} Sections</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-emerald-500/10">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Blueprint Synchronized</span>
-                                        </div>
-                                    </div>
-                                </motion.div>
-
-                            )}
-                        </div>
-
-                        {/* Right: multi-step form */}
-                        <div className="lg:col-span-8">
-                            <form onSubmit={handleGenerate} className="space-y-8">
-                                <AnimatePresence mode="wait">
-                                    {/* ── Step 0: Structure ── */}
-                                    {activeStep === 0 && (
-                                        <motion.div
-                                            key="step0"
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -20 }}
-                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
-                                        >
-                                            <div className="space-y-5">
-                                                {/* Toolbar */}
-                                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">
-                                                        Structure & Template
-                                                    </label>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {(sections.length > 0 || templateFile) && (
+                                                <div className="space-y-3 pt-1">
+                                                    <span className={clsx("text-[11px] font-black tracking-widest uppercase block", theme.label)}>Academic Tone</span>
+                                                    <div className="flex flex-wrap gap-2.5">
+                                                        {(['formal', 'analytical', 'persuasive', 'descriptive'] as AcademicTone[]).map(t => (
                                                             <button
+                                                                key={t}
                                                                 type="button"
-                                                                onClick={handleReset}
-                                                                className="text-xs font-bold text-red-500 flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all"
+                                                                onClick={() => setTone(t)}
+                                                                className={clsx(
+                                                                    'py-2.5 px-6 rounded-full text-xs font-bold capitalize transition-all cursor-pointer',
+                                                                    tone === t
+                                                                        ? 'clay-btn border-none scale-[1.02]'
+                                                                        : 'clay-btn-light border border-[var(--border-main)]'
+                                                                )}
                                                             >
-                                                                <RefreshCw size={14} /> Reset
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowTemplateLibrary(v => !v)}
-                                                            className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all"
-                                                        >
-                                                            <BookOpen size={14} />{' '}
-                                                            {showTemplateLibrary ? 'Hide Library' : 'Browse Library'}
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowPasteInput(v => !v)}
-                                                            className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all"
-                                                        >
-                                                            <Plus size={14} /> Bulk Add
-                                                        </button>
-                                                        <label className="text-xs font-bold text-[var(--text-main)] flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-full hover:bg-[var(--bg-card)] transition-all cursor-pointer">
-                                                            <Upload size={14} /> Upload Template
-                                                            <input
-                                                                ref={fileRef}
-                                                                type="file"
-                                                                className="hidden"
-                                                                onChange={handleFileChange}
-                                                                accept=".pdf,.docx,.txt"
-                                                            />
-                                                        </label>
-                                                    </div>
-                                                </div>
-
-                                                {/* Bulk Paste Input */}
-                                                {showPasteInput && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        className="space-y-4 p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)] backdrop-blur-sm shadow-inner"
-                                                    >
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <h4 className="text-xs font-bold text-[var(--text-main)] uppercase tracking-widest">
-                                                                Paste Side Headings (One per line)
-                                                            </h4>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setShowPasteInput(false)}
-                                                                className="text-stone-400 hover:text-red-500"
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                        <textarea
-                                                            rows={5}
-                                                            value={pastedHeadings}
-                                                            onChange={e => setPastedHeadings(e.target.value)}
-                                                            placeholder="Introduction&#10;Literature Review&#10;Methodology..."
-                                                            className="w-full bg-[var(--bg-card)] border border-[var(--border-main)] rounded-2xl px-6 py-4 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--text-main)] transition-all outline-none resize-none placeholder:text-[var(--text-muted)]/30"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleApplyPastedHeadings}
-                                                            className="w-full py-3 bg-[var(--text-main)] text-[var(--bg-card)] rounded-xl text-xs font-bold hover:scale-[1.02] transition-all shadow-lg"
-                                                        >
-                                                            Add These Headings
-                                                        </button>
-                                                    </motion.div>
-                                                )}
-
-                                                {/* Built-in library */}
-                                                {showTemplateLibrary && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-[var(--bg-app)]/50 rounded-3xl border border-[var(--border-main)] backdrop-blur-sm shadow-inner"
-                                                    >
-                                                        {BUILT_IN_TEMPLATES.map(t => (
-                                                            <button
-                                                                key={t.id}
-                                                                type="button"
-                                                                onClick={() => handleSelectTemplate(t)}
-                                                                className="flex items-start gap-4 p-4 bg-[var(--bg-card)]/50 border border-[var(--border-main)] rounded-2xl hover:border-[var(--text-main)] hover:shadow-lg transition-all text-left group backdrop-blur-sm"
-                                                            >
-                                                                <div className="w-10 h-10 bg-[var(--bg-app)]/80 rounded-xl flex items-center justify-center text-[var(--text-muted)] group-hover:bg-[var(--text-main)] group-hover:text-[var(--bg-card)] transition-all shrink-0 shadow-sm">
-                                                                    <t.icon size={20} />
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="font-bold text-[var(--text-main)] text-sm group-hover:text-[var(--text-main)] transition-colors">
-                                                                        {t.name}
-                                                                    </h4>
-                                                                    <p className="text-[10px] text-[var(--text-muted)] mt-1 uppercase tracking-wider font-black">
-                                                                        {t.sections.length} Sections
-                                                                    </p>
-                                                                </div>
+                                                                {t}
                                                             </button>
                                                         ))}
-                                                    </motion.div>
-                                                )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                                {/* Parse progress */}
+                                        {idx === 1 && (
+                                            <div className="grid sm:grid-cols-2 gap-x-10 gap-y-7 py-4">
+                                                {[
+                                                    { label: 'Student Name', val: studentName, set: setStudentName, ph: 'Full Name', req: true },
+                                                    { label: 'Registration ID', val: regNo, set: setRegNo, ph: 'Roll / ID number', req: true },
+                                                    { label: 'Course Title', val: course, set: setCourse, ph: 'e.g. Computer Science 101', req: false },
+                                                    { label: 'Institution Name', val: institution, set: setInstitution, ph: 'University / College', req: false },
+                                                ].map(({ label, val, set, ph, req }) => (
+                                                    <div key={label} className="space-y-2">
+                                                        <label className={clsx("text-[11px] font-black tracking-widest block uppercase", theme.label)}>
+                                                            {label}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={val}
+                                                            onChange={e => (set as any)(e.target.value)}
+                                                            placeholder={ph}
+                                                            required={req && isCurrent}
+                                                            className={clsx(
+                                                                "clay-input w-full px-5 py-3.5 text-base focus:bg-[var(--bg-card)]",
+                                                                theme.text
+                                                            )}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {idx === 2 && (
+                                            <div className="space-y-6">
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowTemplateLibrary(v => !v)}
+                                                        className="clay-btn-light py-2 px-5 text-xs font-bold cursor-pointer"
+                                                    >
+                                                        Library Templates
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowPasteInput(v => !v)}
+                                                        className="clay-btn-light py-2 px-5 text-xs font-bold cursor-pointer"
+                                                    >
+                                                        Bulk Add Outline
+                                                    </button>
+                                                </div>
+
+                                                <div className={clsx(
+                                                    "clay-card border-2 border-dashed p-6 text-center transition-all relative group bg-[var(--bg-card)]/20 dark:bg-black/10",
+                                                    theme.border,
+                                                    "hover:bg-[var(--bg-card)]/40"
+                                                )}>
+                                                    <Upload size={22} className={clsx("mx-auto mb-2 transition-colors", theme.text)} />
+                                                    <p className={clsx("text-xs font-bold", theme.text)}>Drop template brief or click upload</p>
+                                                    <input
+                                                        ref={fileRef}
+                                                        type="file"
+                                                        className="absolute inset-0 cursor-pointer opacity-0"
+                                                        onChange={handleFileChange}
+                                                        accept=".pdf,.docx,.txt"
+                                                    />
+                                                </div>
+
                                                 {parsingFile && (
-                                                    <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 animate-pulse">
-                                                        <RefreshCw size={16} className="text-amber-500 animate-spin" />
-                                                        <p className="text-xs font-bold text-amber-500">{parseStatus}</p>
+                                                    <div className="clay-card flex items-center gap-3 p-3 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/50 text-sm font-semibold text-[var(--text-main)]">
+                                                        <RefreshCw size={14} className="animate-spin text-stone-500" />
+                                                        <span>{parseStatus}</span>
                                                     </div>
                                                 )}
 
-                                                {/* File name badge */}
                                                 {templateFile && !parsingFile && (
-                                                    <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-xl w-fit shadow-sm">
-                                                        <FileText size={14} className="text-[var(--text-muted)]" />
-                                                        <span className="text-xs font-medium text-[var(--text-main)] truncate max-w-[240px]">
-                                                            {templateFile.name}
-                                                        </span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleReset}
-                                                            className="text-[var(--text-muted)] hover:text-red-500 transition-colors"
-                                                        >
-                                                            <X size={14} />
+                                                    <div className="clay-card flex items-center gap-2 px-3 py-1.5 bg-emerald-550 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 rounded-lg w-fit text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                                        <FileText size={12} className="text-emerald-700 dark:text-emerald-400" />
+                                                        <span className="truncate max-w-[200px]">{templateFile.name}</span>
+                                                        <button type="button" onClick={handleReset} className="text-emerald-600 dark:text-emerald-400 hover:text-red-500 cursor-pointer">
+                                                            <X size={12} />
                                                         </button>
                                                     </div>
                                                 )}
 
-                                                {/* Section list with hierarchy */}
-                                                <div className="space-y-2">
-                                                    {flatSections.map((section, idx) => (
-                                                        <motion.div
-                                                            key={section.id}
-                                                            initial={{ opacity: 0, x: -10 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            transition={{ delay: Math.min(idx * 0.025, 0.25) }}
-                                                            className={clsx(
-                                                                'flex items-center gap-3',
-                                                                LEVEL_INDENT[section.depth] ?? 'ml-0'
-                                                            )}
-                                                        >
+                                                <AnimatePresence>
+                                                    {showPasteInput && (
+                                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                                            <div className="clay-card p-4 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/40 space-y-2">
+                                                                <textarea
+                                                                    rows={3}
+                                                                    value={pastedHeadings}
+                                                                    onChange={e => setPastedHeadings(e.target.value)}
+                                                                    placeholder="Abstract&#10;Introduction&#10;Methodology..."
+                                                                    className="clay-input w-full p-3 text-xs focus:bg-[var(--bg-card)]"
+                                                                />
+                                                                <button type="button" onClick={handleApplyPastedHeadings} className="clay-btn w-full py-2.5 text-xs font-bold cursor-pointer">
+                                                                    Apply
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+
+                                                <AnimatePresence>
+                                                    {showTemplateLibrary && (
+                                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                                            <div className="clay-card grid grid-cols-3 gap-3 p-4 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/45">
+                                                                {BUILT_IN_TEMPLATES.map(t => (
+                                                                    <button
+                                                                        key={t.id}
+                                                                        type="button"
+                                                                        onClick={() => handleSelectTemplate(t)}
+                                                                        className="clay-btn-light p-3 text-center text-xs font-bold transition-colors cursor-pointer"
+                                                                    >
+                                                                        {t.name}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+
+                                                <div className="space-y-3 max-h-[160px] overflow-y-auto pr-1 sidebar-scroll">
+                                                    {flatSections.map((section) => (
+                                                        <div key={section.id} className={clsx('flex items-center gap-3 group', LEVEL_INDENT[section.depth] ?? 'ml-0')}>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => cycleLevel(section.id)}
-                                                                title="Click to change level (H1 → H2 → H3)"
                                                                 className={clsx(
-                                                                    'w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-black transition-all shrink-0 shadow-sm',
-                                                                    LEVEL_BADGE[section.level] ??
-                                                                    'bg-[var(--bg-app)] text-[var(--text-muted)]'
+                                                                    'w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold border transition-all shrink-0 cursor-pointer',
+                                                                    section.level === 1 ? 'clay-btn border-none' : 'clay-btn-light'
                                                                 )}
                                                             >
                                                                 H{section.level}
                                                             </button>
-
                                                             <input
                                                                 type="text"
                                                                 value={section.title}
                                                                 onChange={e => editSection(section.id, e.target.value)}
-                                                                className="flex-1 bg-[var(--bg-app)] border-none rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-[var(--text-main)] text-[var(--text-main)] transition-all outline-none"
+                                                                className={clsx(
+                                                                    "clay-input w-full px-3 py-1.5 text-xs font-semibold focus:bg-[var(--bg-card)]",
+                                                                    theme.text
+                                                                )}
+                                                                placeholder="Section Title..."
                                                             />
-
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeSection(section.id)}
-                                                                className="p-2 text-stone-300 hover:text-red-500 transition-colors shrink-0"
-                                                            >
-                                                                <X size={16} />
+                                                            <button type="button" onClick={() => removeSection(section.id)} className="text-stone-450 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                                                <X size={12} />
                                                             </button>
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Add section */}
-                                                <div className="flex gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => addSection(1)}
-                                                        className="flex-1 py-3 border-2 border-dashed border-[var(--border-main)] rounded-xl text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-all flex items-center justify-center gap-2 px-4"
-                                                    >
-                                                        <Plus size={14} /> Section (H1)
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => addSection(2)}
-                                                        className="flex-1 py-3 border-2 border-dashed border-[var(--border-main)] rounded-xl text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-all flex items-center justify-center gap-2 px-4"
-                                                    >
-                                                        <Plus size={14} /> Subsection (H2)
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-end pt-6 border-t border-[var(--border-main)]/50">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        sections.length > 0
-                                                            ? setActiveStep(1)
-                                                            : toast.error('Add at least one section first')
-                                                    }
-                                                    className="px-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-bold hover:scale-105 transition-all shadow-xl shadow-black/20 flex items-center gap-2"
-                                                >
-                                                    Next Step <ArrowRight size={20} />
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-
-                                    {/* ── Step 1: Core Concept ── */}
-                                    {activeStep === 1 && (
-                                        <motion.div
-                                            key="step1"
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -20 }}
-                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
-                                        >
-                                            <div className="space-y-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
-                                                        Assignment Topic
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={topic}
-                                                        onChange={e => setTopic(e.target.value)}
-                                                        placeholder="e.g. The Impact of Quantum Computing on Modern Cryptography"
-                                                        className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-8 py-5 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
-                                                            Detailed Context & Core Content
-                                                        </label>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowTemplateInput(v => !v)}
-                                                            className="text-[10px] font-bold text-stone-900 flex items-center gap-2 px-3 py-1 bg-stone-50 rounded-full hover:bg-stone-100 transition-all"
-                                                        >
-                                                            <Code size={12} />{' '}
-                                                            {showTemplateInput ? 'Hide' : 'Direct Content Input'}
-                                                        </button>
-                                                    </div>
-
-                                                    {showTemplateInput && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, height: 0 }}
-                                                            animate={{ opacity: 1, height: 'auto' }}
-                                                            className="mb-4"
-                                                        >
-                                                            <div className="p-6 bg-stone-900 rounded-3xl space-y-4">
-                                                                <div className="flex items-center gap-2 text-amber-400">
-                                                                    <Sparkles size={16} />
-                                                                    <h4 className="text-xs font-bold uppercase tracking-widest">
-                                                                        AI Guidance / Reference Material
-                                                                    </h4>
-                                                                </div>
-                                                                <textarea
-                                                                    rows={6}
-                                                                    value={templateText}
-                                                                    onChange={e => setTemplateText(e.target.value)}
-                                                                    placeholder="Paste core content, structure requirements, or reference text…"
-                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium text-white focus:ring-2 focus:ring-amber-400 transition-all outline-none resize-none placeholder:text-stone-600"
-                                                                />
-                                                                <p className="text-[10px] text-stone-500 italic">
-                                                                    * Extracted template content auto-filled above
-                                                                </p>
-                                                            </div>
-                                                        </motion.div>
-                                                    )}
-
-                                                    <textarea
-                                                        rows={5}
-                                                        required
-                                                        value={description}
-                                                        onChange={e => setDescription(e.target.value)}
-                                                        placeholder="Describe key points, required theories, or specific focus areas…"
-                                                        className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-8 py-5 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none resize-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-4 pt-4">
-                                                    <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
-                                                        Academic Tone
-                                                    </label>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                        {(['formal', 'analytical', 'persuasive', 'descriptive'] as AcademicTone[]).map(
-                                                            t => (
-                                                                <button
-                                                                    key={t}
-                                                                    type="button"
-                                                                    onClick={() => setTone(t)}
-                                                                    className={clsx(
-                                                                        'py-3 px-4 rounded-xl text-xs font-bold capitalize transition-all border shadow-sm',
-                                                                        tone === t
-                                                                            ? 'bg-[var(--text-main)] text-[var(--bg-card)] border-[var(--text-main)] shadow-lg'
-                                                                            : 'bg-[var(--bg-app)] text-[var(--text-muted)] border-[var(--border-main)] hover:border-[var(--text-main)]'
-                                                                    )}
-                                                                >
-                                                                    {t}
-                                                                </button>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex justify-between">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setActiveStep(0)}
-                                                    className="px-8 py-4 text-[var(--text-muted)] font-black uppercase tracking-widest text-xs hover:text-[var(--text-main)] transition-all flex items-center gap-2"
-                                                >
-                                                    <ArrowLeft size={20} /> Back
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        topic && description
-                                                            ? setActiveStep(2)
-                                                            : toast.error('Fill in the topic and description first')
-                                                    }
-                                                    className="px-10 py-5 bg-stone-900 text-white rounded-2xl font-bold hover:scale-105 transition-all shadow-xl flex items-center gap-2"
-                                                >
-                                                    Next Step <ArrowRight size={20} />
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-
-                                    {/* ── Step 2: Personalize ── */}
-                                    {activeStep === 2 && (
-                                        <motion.div
-                                            key="step2"
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -20 }}
-                                            className="bg-[var(--bg-card)] rounded-[3rem] p-10 md:p-14 border border-[var(--border-main)] shadow-2xl shadow-black/5 space-y-10"
-                                        >
-                                            <div className="space-y-8">
-                                                <div className="grid md:grid-cols-2 gap-6">
-                                                    {(
-                                                        [
-                                                            {
-                                                                label: 'Student Name',
-                                                                val: studentName,
-                                                                set: setStudentName,
-                                                                ph: 'Full Name',
-                                                                req: true,
-                                                            },
-                                                            {
-                                                                label: 'Registration Number',
-                                                                val: regNo,
-                                                                set: setRegNo,
-                                                                ph: 'ID / Roll Number',
-                                                                req: true,
-                                                            },
-                                                            {
-                                                                label: 'Course / Subject',
-                                                                val: course,
-                                                                set: setCourse,
-                                                                ph: 'e.g. Computer Science 301',
-                                                                req: false,
-                                                            },
-                                                            {
-                                                                label: 'Institution',
-                                                                val: institution,
-                                                                set: setInstitution,
-                                                                ph: 'University / College',
-                                                                req: false,
-                                                            },
-                                                        ] as const
-                                                    ).map(({ label, val, set, ph, req }) => (
-                                                        <div key={label} className="space-y-2">
-                                                            <label className="text-xs font-bold text-stone-400 uppercase tracking-widest">
-                                                                {label}
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={val}
-                                                                onChange={e => (set as any)(e.target.value)}
-                                                                placeholder={ph}
-                                                                required={req}
-                                                                className="w-full bg-[var(--bg-app)] border-2 border-[var(--border-main)] rounded-2xl px-6 py-4 text-lg font-medium focus:border-[var(--text-main)] transition-all outline-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 shadow-sm"
-                                                            />
                                                         </div>
                                                     ))}
                                                 </div>
 
-                                                {/* Summary */}
-                                                <div className="p-8 bg-stone-900 rounded-[2.5rem] text-white space-y-4">
-                                                    <h4 className="text-xl font-bold">Ready for Generation</h4>
-                                                    <p className="text-stone-400 text-sm leading-relaxed">
-                                                        Generating <span className="text-white font-bold">"{topic}"</span> in{' '}
-                                                        <span className="text-white font-bold">{tone}</span> tone with{' '}
-                                                        <span className="text-white font-bold">
-                                                            {sections.filter(s => s.level === 1).length} section
-                                                            {sections.filter(s => s.level === 1).length !== 1 ? 's' : ''}
-                                                        </span>
-                                                        {flatSections.filter(s => s.level >= 2).length > 0 && (
-                                                            <>
-                                                                {' '}
-                                                                and{' '}
-                                                                <span className="text-white font-bold">
-                                                                    {flatSections.filter(s => s.level >= 2).length}{' '}
-                                                                    subsection
-                                                                    {flatSections.filter(s => s.level >= 2).length !== 1
-                                                                        ? 's'
-                                                                        : ''}
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                        .
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {sections
-                                                            .filter(s => s.level === 1)
-                                                            .slice(0, 7)
-                                                            .map(s => (
-                                                                <span
-                                                                    key={s.id}
-                                                                    className="text-[10px] font-bold px-3 py-1 bg-white/10 rounded-full"
-                                                                >
-                                                                    {s.title}
-                                                                </span>
-                                                            ))}
-                                                        {sections.filter(s => s.level === 1).length > 7 && (
-                                                            <span className="text-[10px] font-bold px-3 py-1 bg-white/10 rounded-full">
-                                                                +{sections.filter(s => s.level === 1).length - 7} more
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                <div className="flex gap-3">
+                                                    <button type="button" onClick={() => addSection(1)} className="clay-btn-light flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                                                        <Plus size={12} /> H1 Header
+                                                    </button>
+                                                    <button type="button" onClick={() => addSection(2)} className="clay-btn-light flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                                                        <Plus size={12} /> H2 Subheading
+                                                    </button>
                                                 </div>
                                             </div>
+                                        )}
+                                    </div>
 
-                                            <div className="flex justify-between">
+                                    {/* Card Action Controls Footer */}
+                                    <div className="flex justify-between items-center pt-6 border-t border-stone-250/20 relative z-30">
+                                        {activeStep > 0 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveStep(prev => prev - 1)}
+                                                className="clay-btn-light px-5 py-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <ArrowLeft size={14} /> BACK
+                                            </button>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                {extractedData && (
+                                                    <button type="button" onClick={handleExportJSON} className="clay-btn-light py-2.5 px-5 text-xs font-bold cursor-pointer">
+                                                        Export JSON
+                                                    </button>
+                                                )}
+                                                {flatSections.length > 0 && (
+                                                    <button type="button" onClick={handleSaveAsTemplate} className="clay-btn-light py-2.5 px-5 text-xs font-bold cursor-pointer">
+                                                        Archive Style
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {activeStep < steps.length - 1 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (activeStep === 0 && (!topic || !description)) {
+                                                        toast.error('Fill in the topic and description');
+                                                        return;
+                                                    }
+                                                    if (activeStep === 1 && (!studentName || !regNo)) {
+                                                        toast.error('Student Name and Registration ID are required');
+                                                        return;
+                                                    }
+                                                    setActiveStep(prev => prev + 1);
+                                                }}
+                                                className={clsx(
+                                                    "px-7 py-3.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow active:translate-y-0.5 cursor-pointer",
+                                                    theme.btn
+                                                )}
+                                            >
+                                                CONTINUE <ArrowRight size={14} />
+                                            </button>
+                                        ) : (
+                                            <div className="flex gap-2.5">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setActiveStep(1)}
-                                                    className="px-8 py-4 text-[var(--text-muted)] font-black uppercase tracking-widest text-xs hover:text-[var(--text-main)] transition-all flex items-center gap-2"
+                                                    onClick={e => handleGenerate(e as any, true)}
+                                                    className="clay-btn-light py-3 px-5 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                                                 >
-                                                    <ArrowLeft size={20} /> Back
+                                                    <FileText size={14} /> DOCX
                                                 </button>
-                                                <div className="flex flex-col sm:flex-row gap-4">
-                                                    <button
-                                                        type="button"
-                                                        onClick={e => handleGenerate(e as any, true)}
-                                                        className="px-8 py-4 bg-[var(--bg-card)] border-2 border-[var(--text-main)] text-[var(--text-main)] rounded-2xl font-bold hover:bg-[var(--bg-app)] transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm"
-                                                    >
-                                                        Generate &amp; Download DOCX
-                                                    </button>
-                                                    <button
-                                                        type="submit"
-                                                        className="px-10 py-5 bg-[var(--text-main)] text-[var(--bg-card)] rounded-2xl font-bold hover:scale-105 transition-all shadow-xl shadow-black/20 flex items-center justify-center gap-2"
-                                                    >
-                                                        Generate in Editor <ArrowRight size={20} />
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    className={clsx(
+                                                        "px-7 py-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shadow cursor-pointer",
+                                                        theme.btn
+                                                    )}
+                                                >
+                                                    SYNTHESIZE <Sparkles size={14} />
+                                                </button>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </form>
-                        </div>
+                                        )}
+                                    </div>
+
+                                </motion.div>
+                            );
+                        })}
                     </div>
-                </div>
+                </main>
             </div>
         </Layout>
     );
