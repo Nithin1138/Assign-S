@@ -73,7 +73,7 @@ export interface Document {
   isPersonal?: boolean;
 }
 
-const API_BASE = config.apiUrl || 'http://localhost:8000/api/v1';
+const API_BASE = config.apiUrl || '/api/v1';
 
 export const mapDoc = (d: any): Document => ({
   id: String(d.id),

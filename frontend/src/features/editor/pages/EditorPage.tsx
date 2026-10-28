@@ -1052,8 +1052,6 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
 
   const [isPageSetupOpen, setIsPageSetupOpen] = useState(false);
   const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
-  const [findText, setFindText] = useState('');
-  const [replaceText, setReplaceText] = useState('');
 
   const [rightPanelTab, setRightPanelTab] = useState<TabType>('ai');
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
@@ -1258,24 +1256,6 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
     setPageSettings(settings);
     applyStyles(settings);
   }, [applyStyles]);
-
-  const handleFindReplace = (replace = false) => {
-    if (!editor || !findText) return;
-    const { state } = editor;
-    const { doc } = state;
-    const text = doc.textBetween(0, doc.content.size, '\n');
-    const index = text.indexOf(findText);
-
-    if (index !== -1) {
-      if (replace) {
-        editor.chain().focus().setTextSelection({ from: index + 1, to: index + findText.length + 1 }).insertContent(replaceText).run();
-      } else {
-        editor.chain().focus().setTextSelection({ from: index + 1, to: index + findText.length + 1 }).run();
-      }
-    } else {
-      toast.error('Text not found');
-    }
-  };
 
   useEffect(() => {
     if (!user || !id || !editor) return;
@@ -2114,6 +2094,9 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
           onEmailDocument={handleEmailDocument}
           compilerState={compilerWindowState}
           user={user}
+          findReplaceOpen={isFindReplaceOpen}
+          onFindReplaceOpenChange={setIsFindReplaceOpen}
+          renderFindReplacePanel
         />
       </div>
 
@@ -2137,7 +2120,6 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
               onExportPDF={() => handleExport('pdf')}
               onExportDOCX={() => handleExport('docx')}
               onSaveAsTemplate={handleSaveAsTemplate}
-              onFindReplace={() => setIsFindReplaceOpen(true)}
               onUploadDocument={handleUpload}
               userId={user?.uid}
               docId={id}
@@ -2147,6 +2129,9 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
               onOpenCompiler={() => setCompilerWindowState('open')}
               compilerState={compilerWindowState}
               toolbarMode={assignment?.permission === 'view' ? 'none' : 'controls'}
+              findReplaceOpen={isFindReplaceOpen}
+              onFindReplaceOpenChange={setIsFindReplaceOpen}
+              renderFindReplacePanel={false}
             />
           </div>
 
@@ -2189,51 +2174,6 @@ const EditorPage = ({ isPersonal = false }: { isPersonal?: boolean }) => {
                   }, 2000);
                 }}
               />
-            )}
-          </AnimatePresence>
-
-          {/* ── Find & Replace Modal ──────────────────────────────────────── */}
-          <AnimatePresence>
-            {isFindReplaceOpen && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-[var(--bg-card)] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-[var(--border-main)]"
-                >
-                  <div className="p-6 border-b border-[var(--border-main)] flex items-center justify-between">
-                    <h3 className="font-bold text-[var(--text-main)]">Find and Replace</h3>
-                    <button onClick={() => setIsFindReplaceOpen(false)} className="p-2 hover:bg-[var(--bg-app)] rounded-full transition-colors">
-                      <X size={20} className="text-[var(--text-muted)]" />
-                    </button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Find</label>
-                      <input
-                        value={findText}
-                        onChange={(e) => setFindText(e.target.value)}
-                        className="w-full p-3 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-xl outline-none font-bold text-sm text-[var(--text-main)]"
-                        placeholder="Text to find..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Replace with</label>
-                      <input
-                        value={replaceText}
-                        onChange={(e) => setReplaceText(e.target.value)}
-                        className="w-full p-3 bg-[var(--bg-app)] border border-[var(--border-main)] rounded-xl outline-none font-bold text-sm text-[var(--text-main)]"
-                        placeholder="Replacement text..."
-                      />
-                    </div>
-                  </div>
-                  <div className="p-6 bg-[var(--bg-app)] flex gap-4">
-                    <button onClick={() => handleFindReplace(false)} className="flex-1 py-3 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-xl font-bold text-sm hover:bg-[var(--bg-app)] transition-colors text-[var(--text-main)]">Find Next</button>
-                    <button onClick={() => handleFindReplace(true)} className="flex-1 py-3 bg-[var(--accent-main)] text-[var(--bg-card)] rounded-xl font-bold text-sm hover:opacity-90 transition-colors shadow-lg">Replace</button>
-                  </div>
-                </motion.div>
-              </div>
             )}
           </AnimatePresence>
         </div>

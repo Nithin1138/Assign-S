@@ -512,9 +512,9 @@ const GeneratePage = () => {
                 ? "from-[#1B0B3A]/75 to-[#0C061C]/80 border-violet-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(139,92,246,0.45)] hover:border-violet-400/40" 
                 : "from-[#F5F3FF] to-[#DDD6FE] border-violet-300/80 shadow-[25px_25px_60px_rgba(139,92,246,0.15)] hover:shadow-[0_0_45px_rgba(139,92,246,0.3)] hover:border-violet-400/40",
             badge: isDarkMode ? "text-violet-200 bg-violet-950/60 border-violet-800" : "text-violet-850 bg-violet-100 border-violet-200",
-            btn: "clay-btn-violet text-white",
+            btn: "bg-violet-700 hover:bg-violet-800 shadow-violet-200 text-white",
             text: isDarkMode ? "text-violet-50 placeholder-violet-400/80" : "text-violet-950 placeholder-violet-500/80",
-            border: isDarkMode ? "border-violet-700/40 focus:border-violet-400" : "border-violet-300/60 focus:border-violet-650",
+            border: isDarkMode ? "border-violet-700 focus:border-violet-400" : "border-violet-300 focus:border-violet-600",
             label: isDarkMode ? "text-violet-300/90 font-bold" : "text-violet-750/90 font-bold"
         },
         {
@@ -522,9 +522,9 @@ const GeneratePage = () => {
                 ? "from-[#042433]/75 to-[#050D1D]/80 border-cyan-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(6,182,212,0.45)] hover:border-cyan-400/40" 
                 : "from-[#E0F2FE] to-[#BAE6FD] border-cyan-300/80 shadow-[25px_25px_60px_rgba(6,182,212,0.15)] hover:shadow-[0_0_45px_rgba(6,182,212,0.3)] hover:border-cyan-400/40",
             badge: isDarkMode ? "text-cyan-200 bg-cyan-950/60 border-cyan-800" : "text-cyan-900 bg-cyan-100 border-cyan-200",
-            btn: "clay-btn-cyan text-white",
+            btn: "bg-cyan-700 hover:bg-cyan-800 shadow-cyan-200 text-white",
             text: isDarkMode ? "text-cyan-50 placeholder-cyan-400/80" : "text-cyan-950 placeholder-cyan-600/80",
-            border: isDarkMode ? "border-cyan-700/40 focus:border-cyan-400" : "border-cyan-300/60 focus:border-cyan-600",
+            border: isDarkMode ? "border-cyan-700 focus:border-cyan-400" : "border-cyan-300 focus:border-cyan-600",
             label: isDarkMode ? "text-cyan-300/90 font-bold" : "text-cyan-800/90 font-bold"
         },
         {
@@ -532,9 +532,9 @@ const GeneratePage = () => {
                 ? "from-[#033024]/75 to-[#011610]/80 border-emerald-500/25 backdrop-blur-xl hover:shadow-[0_0_55px_rgba(16,185,129,0.45)] hover:border-emerald-400/40" 
                 : "from-[#ECFDF5] to-[#A7F3D0] border-emerald-300/80 shadow-[25px_25px_60px_rgba(16,185,129,0.15)] hover:shadow-[0_0_45px_rgba(16,185,129,0.3)] hover:border-emerald-400/40",
             badge: isDarkMode ? "text-emerald-250 bg-emerald-950/60 border-emerald-800" : "text-emerald-900 bg-emerald-100 border-emerald-200",
-            btn: "clay-btn-emerald text-white",
+            btn: "bg-emerald-700 hover:bg-emerald-800 shadow-emerald-200 text-white",
             text: isDarkMode ? "text-emerald-50 placeholder-emerald-400/80" : "text-emerald-950 placeholder-emerald-700/85",
-            border: isDarkMode ? "border-emerald-700/40 focus:border-emerald-400" : "border-emerald-300/60 focus:border-emerald-600",
+            border: isDarkMode ? "border-emerald-700 focus:border-emerald-400" : "border-emerald-300 focus:border-emerald-600",
             label: isDarkMode ? "text-emerald-300/90 font-bold" : "text-emerald-800/90 font-bold"
         }
     ];
@@ -691,7 +691,8 @@ const GeneratePage = () => {
                                                     onChange={e => setTopic(e.target.value)}
                                                     placeholder="Enter your research topic..."
                                                     className={clsx(
-                                                        "clay-input w-full px-5 py-4 text-2xl md:text-3xl font-serif italic focus:bg-[var(--bg-card)]",
+                                                        "w-full bg-transparent border-b-2 pb-3 text-3xl md:text-4xl font-serif italic outline-none transition-all duration-300",
+                                                        theme.border,
                                                         theme.text
                                                     )}
                                                 />
@@ -701,7 +702,7 @@ const GeneratePage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowTemplateInput(v => !v)}
-                                                            className="clay-btn-light px-3 py-1 text-[9px] font-bold uppercase transition-colors hover:opacity-85 cursor-pointer"
+                                                            className={clsx("text-[9px] font-bold uppercase transition-colors hover:opacity-80", theme.text)}
                                                         >
                                                             {showTemplateInput ? '- Hide Context' : '+ Add Reference Context'}
                                                         </button>
@@ -715,7 +716,8 @@ const GeneratePage = () => {
                                                                     onChange={e => setTemplateText(e.target.value)}
                                                                     placeholder="Paste document reference notes or styling requirements..."
                                                                     className={clsx(
-                                                                        "clay-input w-full p-4 text-sm resize-none mb-3",
+                                                                        "w-full bg-transparent border-b p-3 text-sm outline-none resize-none transition-all duration-300 mb-3",
+                                                                        theme.border,
                                                                         theme.text
                                                                     )}
                                                                 />
@@ -729,7 +731,7 @@ const GeneratePage = () => {
                                                         onChange={e => setDescription(e.target.value)}
                                                         placeholder="Describe specific requests, required theories, formatting rules..."
                                                         className={clsx(
-                                                            "clay-input w-full p-4 text-base resize-none",
+                                                            "w-full bg-transparent text-base outline-none resize-none transition-all duration-300",
                                                             theme.text
                                                         )}
                                                     />
@@ -743,10 +745,10 @@ const GeneratePage = () => {
                                                                 type="button"
                                                                 onClick={() => setTone(t)}
                                                                 className={clsx(
-                                                                    'py-2.5 px-6 rounded-full text-xs font-bold capitalize transition-all cursor-pointer',
+                                                                    'py-2 px-6 rounded-full text-xs font-bold capitalize transition-all border',
                                                                     tone === t
-                                                                        ? 'clay-btn border-none scale-[1.02]'
-                                                                        : 'clay-btn-light border border-[var(--border-main)]'
+                                                                        ? 'bg-[var(--text-main)] text-[var(--bg-card)] border-[var(--text-main)] shadow-sm'
+                                                                        : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-main)] hover:border-[var(--text-main)] hover:text-[var(--text-main)]'
                                                                 )}
                                                             >
                                                                 {t}
@@ -776,7 +778,8 @@ const GeneratePage = () => {
                                                             placeholder={ph}
                                                             required={req && isCurrent}
                                                             className={clsx(
-                                                                "clay-input w-full px-5 py-3.5 text-base focus:bg-[var(--bg-card)]",
+                                                                "w-full bg-transparent border-b-2 pb-2 text-base outline-none transition-all duration-300",
+                                                                theme.border,
                                                                 theme.text
                                                             )}
                                                         />
@@ -791,21 +794,31 @@ const GeneratePage = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowTemplateLibrary(v => !v)}
-                                                        className="clay-btn-light py-2 px-5 text-xs font-bold cursor-pointer"
+                                                        className={clsx(
+                                                            "py-1.5 px-4 border rounded-full text-xs font-bold transition-colors bg-[var(--bg-card)]/50",
+                                                            theme.border,
+                                                            theme.text,
+                                                            "hover:bg-[var(--bg-card)]/80"
+                                                        )}
                                                     >
                                                         Library Templates
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => setShowPasteInput(v => !v)}
-                                                        className="clay-btn-light py-2 px-5 text-xs font-bold cursor-pointer"
+                                                        className={clsx(
+                                                            "py-1.5 px-4 border rounded-full text-xs font-bold transition-colors bg-[var(--bg-card)]/50",
+                                                            theme.border,
+                                                            theme.text,
+                                                            "hover:bg-[var(--bg-card)]/80"
+                                                        )}
                                                     >
                                                         Bulk Add Outline
                                                     </button>
                                                 </div>
 
                                                 <div className={clsx(
-                                                    "clay-card border-2 border-dashed p-6 text-center transition-all relative group bg-[var(--bg-card)]/20 dark:bg-black/10",
+                                                    "border-2 border-dashed rounded-xl p-5 text-center transition-all relative group bg-[var(--bg-card)]/20 dark:bg-black/10",
                                                     theme.border,
                                                     "hover:bg-[var(--bg-card)]/40"
                                                 )}>
@@ -821,17 +834,17 @@ const GeneratePage = () => {
                                                 </div>
 
                                                 {parsingFile && (
-                                                    <div className="clay-card flex items-center gap-3 p-3 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/50 text-sm font-semibold text-[var(--text-main)]">
+                                                    <div className="flex items-center gap-3 p-3 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/50 rounded-lg text-sm font-semibold text-[var(--text-main)]">
                                                         <RefreshCw size={14} className="animate-spin text-stone-500" />
                                                         <span>{parseStatus}</span>
                                                     </div>
                                                 )}
 
                                                 {templateFile && !parsingFile && (
-                                                    <div className="clay-card flex items-center gap-2 px-3 py-1.5 bg-emerald-550 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 rounded-lg w-fit text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 rounded-lg w-fit text-xs font-semibold text-emerald-800 dark:text-emerald-300">
                                                         <FileText size={12} className="text-emerald-700 dark:text-emerald-400" />
                                                         <span className="truncate max-w-[200px]">{templateFile.name}</span>
-                                                        <button type="button" onClick={handleReset} className="text-emerald-600 dark:text-emerald-400 hover:text-red-500 cursor-pointer">
+                                                        <button type="button" onClick={handleReset} className="text-emerald-600 dark:text-emerald-400 hover:text-red-500">
                                                             <X size={12} />
                                                         </button>
                                                     </div>
@@ -840,15 +853,15 @@ const GeneratePage = () => {
                                                 <AnimatePresence>
                                                     {showPasteInput && (
                                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                                                            <div className="clay-card p-4 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/40 space-y-2">
+                                                            <div className="p-3 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/40 rounded-xl space-y-2">
                                                                 <textarea
                                                                     rows={3}
                                                                     value={pastedHeadings}
                                                                     onChange={e => setPastedHeadings(e.target.value)}
                                                                     placeholder="Abstract&#10;Introduction&#10;Methodology..."
-                                                                    className="clay-input w-full p-3 text-xs focus:bg-[var(--bg-card)]"
+                                                                    className="w-full bg-[var(--bg-card)]/70 border border-[var(--border-main)]/65 rounded-lg p-2.5 text-xs outline-none text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
                                                                 />
-                                                                <button type="button" onClick={handleApplyPastedHeadings} className="clay-btn w-full py-2.5 text-xs font-bold cursor-pointer">
+                                                                <button type="button" onClick={handleApplyPastedHeadings} className="w-full py-2 bg-[var(--text-main)] text-[var(--bg-card)] rounded-lg text-xs font-bold">
                                                                     Apply
                                                                 </button>
                                                             </div>
@@ -859,13 +872,13 @@ const GeneratePage = () => {
                                                 <AnimatePresence>
                                                     {showTemplateLibrary && (
                                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                                                            <div className="clay-card grid grid-cols-3 gap-3 p-4 bg-[var(--bg-card)]/40 border border-[var(--border-main)]/45">
+                                                            <div className="grid grid-cols-3 gap-3 p-3 bg-[var(--bg-card)]/40 rounded-xl border border-[var(--border-main)]/45">
                                                                 {BUILT_IN_TEMPLATES.map(t => (
                                                                     <button
                                                                         key={t.id}
                                                                         type="button"
                                                                         onClick={() => handleSelectTemplate(t)}
-                                                                        className="clay-btn-light p-3 text-center text-xs font-bold transition-colors cursor-pointer"
+                                                                        className="p-3 bg-[var(--bg-card)] border border-[var(--border-main)] rounded-lg hover:border-[var(--text-main)] text-center text-xs font-bold text-[var(--text-main)] transition-colors"
                                                                     >
                                                                         {t.name}
                                                                     </button>
@@ -882,8 +895,8 @@ const GeneratePage = () => {
                                                                 type="button"
                                                                 onClick={() => cycleLevel(section.id)}
                                                                 className={clsx(
-                                                                    'w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold border transition-all shrink-0 cursor-pointer',
-                                                                    section.level === 1 ? 'clay-btn border-none' : 'clay-btn-light'
+                                                                    'w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold border transition-all shrink-0',
+                                                                    section.level === 1 ? 'bg-[var(--text-main)] text-[var(--bg-card)] border-[var(--text-main)]' : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border-main)]'
                                                                 )}
                                                             >
                                                                 H{section.level}
@@ -893,12 +906,13 @@ const GeneratePage = () => {
                                                                 value={section.title}
                                                                 onChange={e => editSection(section.id, e.target.value)}
                                                                 className={clsx(
-                                                                    "clay-input w-full px-3 py-1.5 text-xs font-semibold focus:bg-[var(--bg-card)]",
+                                                                    "w-full bg-transparent border-b text-xs font-semibold outline-none pb-1 transition-all duration-300",
+                                                                    theme.border,
                                                                     theme.text
                                                                 )}
                                                                 placeholder="Section Title..."
                                                             />
-                                                            <button type="button" onClick={() => removeSection(section.id)} className="text-stone-450 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                                            <button type="button" onClick={() => removeSection(section.id)} className="text-stone-450 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <X size={12} />
                                                             </button>
                                                         </div>
@@ -906,10 +920,10 @@ const GeneratePage = () => {
                                                 </div>
 
                                                 <div className="flex gap-3">
-                                                    <button type="button" onClick={() => addSection(1)} className="clay-btn-light flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                                                    <button type="button" onClick={() => addSection(1)} className="flex-1 py-2 border border-dashed border-[var(--border-main)] rounded-lg text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] flex items-center justify-center gap-1.5 transition-colors">
                                                         <Plus size={12} /> H1 Header
                                                     </button>
-                                                    <button type="button" onClick={() => addSection(2)} className="clay-btn-light flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+                                                    <button type="button" onClick={() => addSection(2)} className="flex-1 py-2 border border-dashed border-[var(--border-main)] rounded-lg text-[var(--text-muted)] text-xs font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] flex items-center justify-center gap-1.5 transition-colors">
                                                         <Plus size={12} /> H2 Subheading
                                                     </button>
                                                 </div>
@@ -923,19 +937,19 @@ const GeneratePage = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => setActiveStep(prev => prev - 1)}
-                                                className="clay-btn-light px-5 py-3 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                                className={clsx("px-5 py-3 text-xs font-bold flex items-center gap-1.5 transition-colors hover:opacity-80", theme.text)}
                                             >
                                                 <ArrowLeft size={14} /> BACK
                                             </button>
                                         ) : (
                                             <div className="flex gap-2">
                                                 {extractedData && (
-                                                    <button type="button" onClick={handleExportJSON} className="clay-btn-light py-2.5 px-5 text-xs font-bold cursor-pointer">
+                                                    <button type="button" onClick={handleExportJSON} className="py-2 px-4 border border-[var(--border-main)] rounded-full text-xs font-bold text-[var(--text-muted)] hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-colors">
                                                         Export JSON
                                                     </button>
                                                 )}
                                                 {flatSections.length > 0 && (
-                                                    <button type="button" onClick={handleSaveAsTemplate} className="clay-btn-light py-2.5 px-5 text-xs font-bold cursor-pointer">
+                                                    <button type="button" onClick={handleSaveAsTemplate} className="py-2 px-4 border border-[var(--border-main)] rounded-full text-xs font-bold text-[var(--text-muted)] hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-colors">
                                                         Archive Style
                                                     </button>
                                                 )}
@@ -957,7 +971,7 @@ const GeneratePage = () => {
                                                     setActiveStep(prev => prev + 1);
                                                 }}
                                                 className={clsx(
-                                                    "px-7 py-3.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow active:translate-y-0.5 cursor-pointer",
+                                                    "px-7 py-3.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow active:translate-y-0.5",
                                                     theme.btn
                                                 )}
                                             >
@@ -968,14 +982,14 @@ const GeneratePage = () => {
                                                 <button
                                                     type="button"
                                                     onClick={e => handleGenerate(e as any, true)}
-                                                    className="clay-btn-light py-3 px-5 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                                    className="py-3 px-5 border border-[var(--border-main)] rounded-full text-xs font-bold text-[var(--text-muted)] hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-colors flex items-center gap-1.5"
                                                 >
                                                     <FileText size={14} /> DOCX
                                                 </button>
                                                 <button
                                                     type="submit"
                                                     className={clsx(
-                                                        "px-7 py-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shadow cursor-pointer",
+                                                        "px-7 py-3.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shadow",
                                                         theme.btn
                                                     )}
                                                 >

@@ -130,7 +130,6 @@ interface EditorToolbarProps {
   onExportPDF?: () => void;
   onExportDOCX?: () => void;
   onSaveAsTemplate?: () => void;
-  onFindReplace?: () => void;
   mode?: 'full' | 'menu' | 'controls' | 'none';
   title?: string;
   onTitleChange?: (t: string) => void;
@@ -149,6 +148,9 @@ interface EditorToolbarProps {
   onInternalShare?: () => void;
   onExternalShare?: () => void;
   onEmailDocument?: () => void;
+  findReplaceOpen?: boolean;
+  onFindReplaceOpenChange?: (open: boolean) => void;
+  renderFindReplacePanel?: boolean;
 }
 
 // ─── Sub‑components ───────────────────────────────────────────────────────────
@@ -567,7 +569,7 @@ export const SearchHighlight = Extension.create({
         }
         return true
       },
-    }
+    } as any
   },
 
   addProseMirrorPlugins() {
@@ -778,12 +780,15 @@ const FindReplacePanel = ({ editor, onClose }: { editor: Editor; onClose: () => 
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor, onPageSetup, onInsertDiagram, onToggleRightPanel, isRightPanelOpen = false,
-  onSave, onExportPDF, onExportDOCX, onSaveAsTemplate, onFindReplace,
+  onSave, onExportPDF, onExportDOCX, onSaveAsTemplate,
   mode = 'full', title, onTitleChange, isSaving, onBack, isReadOnly = false,
   showRuler, onToggleRuler, onApplySettings, currentSettings, onUploadDocument, onOpenCompiler, compilerState,
-  user, onOpenVersionHistory, onInternalShare, onExternalShare, onEmailDocument
+  user, onOpenVersionHistory, onInternalShare, onExternalShare, onEmailDocument,
+  findReplaceOpen,
+  onFindReplaceOpenChange,
+  renderFindReplacePanel = true
 }) => {
-  const [findOpen, setFindOpen] = useState(false);
+  const [internalFindOpen, setInternalFindOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkOpen, setLinkOpen] = useState(false);
   const [trackChanges, setTrackChanges] = useState(false);
@@ -794,6 +799,18 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [recentDocs, setRecentDocs] = useState<Document[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const isFindReplaceControlled = findReplaceOpen !== undefined;
+  const isFindReplaceOpen = isFindReplaceControlled ? findReplaceOpen : internalFindOpen;
+  const setFindReplaceOpen = useCallback((next: boolean | ((prev: boolean) => boolean)) => {
+    const resolved = typeof next === 'function'
+      ? (next as (prev: boolean) => boolean)(isFindReplaceControlled ? !!findReplaceOpen : internalFindOpen)
+      : next;
+
+    if (!isFindReplaceControlled) setInternalFindOpen(resolved);
+    onFindReplaceOpenChange?.(resolved);
+  }, [findReplaceOpen, internalFindOpen, isFindReplaceControlled, onFindReplaceOpenChange]);
+  const openFindReplace = useCallback(() => setFindReplaceOpen(true), [setFindReplaceOpen]);
+  const toggleFindReplace = useCallback(() => setFindReplaceOpen(prev => !prev), [setFindReplaceOpen]);
 
   useEffect(() => {
     if (user?.uid) {
@@ -825,13 +842,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
   // ─── Global Keyboard Shortcuts ────────────────────────────────────────────
   useEffect(() => {
+    if (mode === 'menu') return;
+
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl) return;
       switch (e.key.toLowerCase()) {
         case 'h':
           e.preventDefault();
-          setFindOpen(v => !v);
+          toggleFindReplace();
           break;
         case 's':
           e.preventDefault();
@@ -847,7 +866,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onSave]);
+  }, [mode, onSave, toggleFindReplace]);
 
   if (!editor) return null;
 
@@ -1036,6 +1055,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const handleCut = () => { navigator.clipboard.writeText(getSelectedText()); editor.chain().focus().deleteSelection().run(); };
   const handlePaste = async () => { const t = await navigator.clipboard.readText(); if (t) editor.chain().focus().insertContent(t).run(); };
   const handlePastePlain = async () => { const t = await navigator.clipboard.readText(); if (t) editor.chain().focus().clearNodes().unsetAllMarks().insertContent(t).run(); };
+
+  const renderEditMenuItems = (showShortcuts = false) => (
+    <>
+      <MenuItem icon={Undo} label="Undo" shortcut={showShortcuts ? "Ctrl+Z" : undefined} onClick={() => editor.chain().focus().undo().run()} />
+      <MenuItem icon={Redo} label="Redo" shortcut={showShortcuts ? "Ctrl+Y" : undefined} onClick={() => editor.chain().focus().redo().run()} />
+      <MenuDivider />
+      <MenuItem icon={Scissors} label="Cut" shortcut={showShortcuts ? "Ctrl+X" : undefined} onClick={handleCut} />
+      <MenuItem icon={Copy} label="Copy" shortcut={showShortcuts ? "Ctrl+C" : undefined} onClick={handleCopy} />
+      <MenuItem icon={Clipboard} label="Paste" shortcut={showShortcuts ? "Ctrl+V" : undefined} onClick={handlePaste} />
+      <MenuItem label="Paste without Formatting" onClick={handlePastePlain} />
+      <MenuItem label="Select All" shortcut={showShortcuts ? "Ctrl+A" : undefined} onClick={() => editor.chain().focus().selectAll().run()} />
+      <MenuDivider />
+      <MenuItem icon={Search} label="Find & Replace" shortcut={showShortcuts ? "Ctrl+H" : undefined} onClick={toggleFindReplace} />
+    </>
+  );
 
   const escapeHtml = (value: string) =>
     value.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] || ch));
@@ -1434,16 +1468,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               <Dropdown width="w-56" trigger={
                 <button className="px-2.5 py-1 rounded text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors">Edit</button>
               }>
-                <MenuItem icon={Undo} label="Undo" shortcut="Ctrl+Z" onClick={() => editor.chain().focus().undo().run()} />
-                <MenuItem icon={Redo} label="Redo" shortcut="Ctrl+Y" onClick={() => editor.chain().focus().redo().run()} />
-                <MenuDivider />
-                <MenuItem icon={Scissors} label="Cut" shortcut="Ctrl+X" onClick={handleCut} />
-                <MenuItem icon={Copy} label="Copy" shortcut="Ctrl+C" onClick={handleCopy} />
-                <MenuItem icon={Clipboard} label="Paste" shortcut="Ctrl+V" onClick={handlePaste} />
-                <MenuItem label="Paste without Formatting" onClick={handlePastePlain} />
-                <MenuItem label="Select All" shortcut="Ctrl+A" onClick={() => editor.chain().focus().selectAll().run()} />
-                <MenuDivider />
-                <MenuItem icon={Search} label="Find & Replace" shortcut="Ctrl+H" onClick={() => setFindOpen(v => !v)} />
+                {renderEditMenuItems(true)}
               </Dropdown>
 
               {/* View */}
@@ -1851,7 +1876,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
                   const chars = editor.state.doc.textContent.length;
                   window.alert(`Words: ${words}\nCharacters: ${chars}`);
                 }} />
-                <MenuItem icon={Search} label="Find & Replace" onClick={() => setFindOpen(true)} />
+                <MenuItem icon={Search} label="Find & Replace" onClick={openFindReplace} />
                 <MenuDivider />
                 <MenuItem icon={SpellCheck} label="Spell Check" onClick={() => { }} />
                 <MenuItem icon={Mic} label="Voice Typing" onClick={() => { }} />
@@ -2167,12 +2192,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
             <div className="flex-1" />
           </div>
-          {/* Find & Replace panel — floats below row 3, left-aligned */}
-          <AnimatePresence>
-            {findOpen && <FindReplacePanel editor={editor} onClose={() => setFindOpen(false)} />}
-          </AnimatePresence>
         </>
       )}
+      <AnimatePresence>
+        {renderFindReplacePanel && isFindReplaceOpen && (
+          <FindReplacePanel editor={editor} onClose={() => setFindReplaceOpen(false)} />
+        )}
+      </AnimatePresence>
       <input
         type="file"
         ref={fileInputRef}

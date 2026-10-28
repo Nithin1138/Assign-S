@@ -32,7 +32,6 @@ interface DocumentEditorProps {
   onExportPDF?: () => void;
   onExportDOCX?: () => void;
   onSaveAsTemplate?: () => void;
-  onFindReplace?: () => void;
   userId?: string;
   docId?: string;
   title?: string;
@@ -44,6 +43,9 @@ interface DocumentEditorProps {
   onUploadDocument?: (f: File) => void;
   onOpenCompiler?: () => void;
   compilerState?: 'open' | 'minimized' | 'closed';
+  findReplaceOpen?: boolean;
+  onFindReplaceOpenChange?: (open: boolean) => void;
+  renderFindReplacePanel?: boolean;
 }
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -59,7 +61,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onExportPDF,
   onExportDOCX,
   onSaveAsTemplate,
-  onFindReplace,
   userId,
   docId,
   title = "Untitled",
@@ -71,6 +72,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onUploadDocument,
   onOpenCompiler,
   compilerState,
+  findReplaceOpen,
+  onFindReplaceOpenChange,
+  renderFindReplacePanel,
 }) => {
   const [isAiInputOpen, setIsAiInputOpen] = React.useState(false);
   const [customPrompt, setCustomPrompt] = React.useState('');
@@ -138,12 +142,14 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         onExportPDF={onExportPDF}
         onExportDOCX={onExportDOCX}
         onSaveAsTemplate={onSaveAsTemplate}
-        onFindReplace={onFindReplace}
         onApplySettings={onApplySettings}
         currentSettings={currentSettings}
         onUploadDocument={onUploadDocument}
         onOpenCompiler={onOpenCompiler}
         compilerState={compilerState}
+        findReplaceOpen={findReplaceOpen}
+        onFindReplaceOpenChange={onFindReplaceOpenChange}
+        renderFindReplacePanel={renderFindReplacePanel}
       />
       
       <div

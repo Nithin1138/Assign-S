@@ -110,5 +110,7 @@ app.include_router(
 # Health Check
 # ----------------------------
 @app.get("/")
+@app.get("/api")
+@app.get("/api/health")
 def health_check():
     return {"success": True, "data": {"status": "running"}, "error": None}

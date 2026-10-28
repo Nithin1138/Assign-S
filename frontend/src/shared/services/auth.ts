@@ -1,6 +1,6 @@
 import { config } from './config';
 
-const API_BASE = config.API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = config.apiUrl || '/api/v1';
 
 export const signUpWithEmail = async (email: string, pass: string, displayName: string = "") => {
   const response = await fetch(`${API_BASE}/auth/register`, {
